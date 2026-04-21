@@ -66,7 +66,7 @@ Base.@kwdef struct Params
     C_ice::Float64     = 1e7
 
     # Land fraction per latitudinal band [0–1].
-    # Empty vector → all ocean.  Length must equal n when provided.
+    # Empty vector → FILLET default (0.25 uniform).  Length must equal n when provided.
     land_fraction::Vector{Float64} = Float64[]
 
     # Surface albedo [FILLET Table 4]
@@ -97,15 +97,39 @@ make_grid(p::Params) = collect(range(-1.0, 1.0, length=p.n))
 lat_deg(x::AbstractVector) = asind.(x)
 
 """
+Approximate Earth land fraction by sin-latitude (pre-industrial).
+
+Knots are (sin_lat, land_fraction) pairs derived from actual Earth land/ocean
+area by latitude band. Global mean ≈ 0.30. Captures the NH/SH asymmetry
+(more land at NH mid-latitudes, Southern Ocean gap, Antarctic continent).
+"""
+function earth_land_fraction(x::AbstractVector)
+    # sin_lat knots (band mid-points), land fraction values
+    kx = [-1.000, -0.933, -0.787, -0.604, -0.380, -0.130,
+           0.130,  0.380,  0.604,  0.787,  0.916,  0.983, 1.000]
+    kf = [ 0.41,   0.41,   0.01,   0.08,   0.23,   0.24,
+           0.31,   0.39,   0.46,   0.55,   0.48,   0.17,  0.17]
+    return [_linterp(Float64(xi), kx, kf) for xi in x]
+end
+
+function _linterp(xi::Float64, xs::Vector{Float64}, ys::Vector{Float64})
+    xi <= xs[1]   && return ys[1]
+    xi >= xs[end] && return ys[end]
+    i = searchsortedlast(xs, xi)
+    t = (xi - xs[i]) / (xs[i+1] - xs[i])
+    return ys[i] + t * (ys[i+1] - ys[i])
+end
+
+"""
 Effective heat capacity [J m⁻² K⁻¹] for each latitudinal band.
 
-Uses `p.land_fraction` if provided (length n), otherwise all-ocean.
+Uses `p.land_fraction` if provided (length n), otherwise FILLET default (0.25 uniform).
 Ice heat capacity (`C_ice`) is not applied dynamically here to keep the IMEX
 solver matrix constant; it would require refactoring the matrix each timestep.
 """
 function heat_capacity(x::AbstractVector, p::Params)
     n  = length(x)
-    fl = isempty(p.land_fraction) ? zeros(n) : p.land_fraction
+    fl = isempty(p.land_fraction) ? fill(0.25, n) : p.land_fraction
     length(fl) == n || error("land_fraction length ($(length(fl))) must equal n ($n)")
     return @. fl * p.C_land + (1 - fl) * p.C_ocean
 end
@@ -159,8 +183,13 @@ function insolation_instant(x::AbstractVector, p::Params, λ::Float64)
     return Q
 end
 
-albedo(T::Real,           p::Params) = T < p.T_ice ? p.α_ice : p.α_ocean
-albedo(T::AbstractVector, p::Params) = albedo.(T, Ref(p))
+albedo(T::Real, fl::Real, p::Params) = T < p.T_ice ? p.α_ice : fl * p.α_land + (1 - fl) * p.α_ocean
+
+function albedo(T::AbstractVector, p::Params)
+    n  = length(T)
+    fl = isempty(p.land_fraction) ? fill(0.25, n) : p.land_fraction
+    return albedo.(T, fl, Ref(p))
+end
 
 """Effective OLR intercept after CO₂ forcing [W m⁻²]."""
 A_eff(p::Params) = p.A - p.F_CO2 * log(p.CO2 / p.CO2_ref)
@@ -416,18 +445,24 @@ TOA albedo equals surface albedo (no atmospheric scattering in this model).
 function fillet_profile(T::AbstractVector, x::AbstractVector, p::Params;
                         α_mean::Union{Nothing, AbstractVector}   = nothing,
                         olr_mean::Union{Nothing, AbstractVector} = nothing)
+    n   = length(x)
     α   = isnothing(α_mean)   ? albedo(T, p)             : α_mean
     olr = isnothing(olr_mean) ? @.(A_eff(p) + p.B * T)   : olr_mean
-    return (lat=lat_deg(x), Tsurf=T .+ K_OFFSET, Asurf=α, ATOA=α, OLR=olr)
+    fl  = isempty(p.land_fraction) ? fill(0.25, n) : p.land_fraction
+    return (lat=lat_deg(x), Tsurf=T .+ K_OFFSET, Asurf=α, ATOA=α, OLR=olr, Fland=fl)
 end
 
 """
 Global scalar outputs in FILLET template format.
 
-Columns follow the official FILLET template (global_output.dat):
-  Case Inst Obl XCO2 Tglob IceLineNMax IceLineNMin IceLineSMax IceLineSMin Diff OLRglob
+Columns follow the FILLET v1.1 template (global_output.dat):
+  Case Inst Obl XCO2 Tglob
+  IceLineNMaxLand IceLineNMinLand IceLineNMaxSea IceLineNMinSea
+  IceLineSMaxLand IceLineSMinLand IceLineSMaxSea IceLineSMinSea
+  Diff OLRglob
 
-No Land/Sea split — AVALON has no land-ocean mask.
+AVALON uses a single temperature per band (land fraction blended), so land and sea
+ice lines are identical; both sets of columns carry the same values.
 Pass `α_mean` and `olr_mean` from `equilibrium` for correct annual means in seasonal mode.
 """
 function fillet_global(T::AbstractVector, x::AbstractVector, p::Params;
@@ -443,10 +478,14 @@ function fillet_global(T::AbstractVector, x::AbstractVector, p::Params;
         Obl         = p.obliquity,
         XCO2        = p.CO2,
         Tglob       = global_mean(T) + K_OFFSET,
-        IceLineNMax = edges.NH_max,
-        IceLineNMin = edges.NH_min,
-        IceLineSMax = edges.SH_max,
-        IceLineSMin = edges.SH_min,
+        IceLineNMaxLand = edges.NH_max,
+        IceLineNMinLand = edges.NH_min,
+        IceLineNMaxSea  = edges.NH_max,
+        IceLineNMinSea  = edges.NH_min,
+        IceLineSMaxLand = edges.SH_max,
+        IceLineSMinLand = edges.SH_min,
+        IceLineSMaxSea  = edges.SH_max,
+        IceLineSMinSea  = edges.SH_min,
         Diff        = p.D,
         OLRglob     = budget.OLR,
     )
@@ -481,10 +520,10 @@ function write_fillet_output(T::AbstractVector, x::AbstractVector, p::Params,
         println(io, "# Mode: $(p.seasonal ? "seasonal" : "annual-mean")")
         println(io, "#")
         println(io, "# Columns of data (annually averaged for last orbit)")
-        println(io, "# Lat Tsurf Asurf ATOA OLR")
+        println(io, "# Lat Tsurf Asurf ATOA OLR Fland")
         for i in eachindex(x)
-            @printf(io, "%7.2f %8.2f %6.4f %6.4f %8.2f\n",
-                    prof.lat[i], prof.Tsurf[i], prof.Asurf[i], prof.ATOA[i], prof.OLR[i])
+            @printf(io, "%7.2f %8.2f %6.4f %6.4f %8.2f %6.4f\n",
+                    prof.lat[i], prof.Tsurf[i], prof.Asurf[i], prof.ATOA[i], prof.OLR[i], prof.Fland[i])
         end
     end
 
@@ -494,9 +533,9 @@ function write_fillet_output(T::AbstractVector, x::AbstractVector, p::Params,
         println(io, "# Model: AVALON (Albedo-feedback Variable Axial-tilt Latitudinal Outgoing-Net EBM)")
         println(io, "# Mode: $(p.seasonal ? "seasonal" : "annual-mean")")
         println(io, "# Ice line definition: latitude where annual-mean surface temperature crosses $(p.T_ice) °C")
-        println(io, "# No land-ocean mask; IceLineNMax/Min and IceLineSMax/Min apply to all surface types")
-        println(io, "# Ice-free convention: IceLineNMax=IceLineNMin=90, IceLineSMax=IceLineSMin=-90")
-        println(io, "# Case Inst Obl XCO2 Tglob IceLineNMax IceLineNMin IceLineSMax IceLineSMin Diff OLRglob")
+        println(io, "# Single T per band: land and sea ice lines are identical (FILLET v1.1 four-value-per-hemisphere format)")
+        println(io, "# Ice-free convention: NMaxLand=NMinLand=NMaxSea=NMinSea=90; SMaxLand=SMinLand=SMaxSea=SMinSea=-90")
+        println(io, "# Case Inst Obl XCO2 Tglob IceLineNMaxLand IceLineNMinLand IceLineNMaxSea IceLineNMinSea IceLineSMaxLand IceLineSMinLand IceLineSMaxSea IceLineSMinSea Diff OLRglob")
         println(io, join(string.(values(g)), " "))
     end
 
@@ -540,8 +579,8 @@ function run_fillet_sweep(S0_factors::AbstractVector, obliquities::AbstractVecto
         println(io, "# Name of benchmark/experiment: $label")
         println(io, "# Model: AVALON (Albedo-feedback Variable Axial-tilt Latitudinal Outgoing-Net EBM)")
         println(io, "# Ice line definition: latitude where annual-mean surface temperature crosses $(p_base.T_ice) °C")
-        println(io, "# Ice-free convention: IceLineNMax=IceLineNMin=90, IceLineSMax=IceLineSMin=-90")
-        println(io, "# Case Inst Obl XCO2 Tglob IceLineNMax IceLineNMin IceLineSMax IceLineSMin Diff OLRglob")
+        println(io, "# Ice-free convention: NMaxLand=NMinLand=NMaxSea=NMinSea=90; SMaxLand=SMinLand=SMaxSea=SMinSea=-90")
+        println(io, "# Case Inst Obl XCO2 Tglob IceLineNMaxLand IceLineNMinLand IceLineNMaxSea IceLineNMinSea IceLineSMaxLand IceLineSMinLand IceLineSMaxSea IceLineSMinSea Diff OLRglob")
         for (n_done, (obl, sf)) in enumerate((obl, sf) for obl in obliquities for sf in S0_factors)
             kw = Dict{Symbol,Any}(f => getfield(p_base, f) for f in fieldnames(Params))
             kw[:S0]        = Float64(sf) * S_earth
@@ -568,10 +607,10 @@ function run_fillet_sweep(S0_factors::AbstractVector, obliquities::AbstractVecto
                 println(lat_io, "# Mode: $(p.seasonal ? "seasonal" : "annual-mean")")
                 println(lat_io, "#")
                 println(lat_io, "# Columns of data (annually averaged for last orbit)")
-                println(lat_io, "# Lat Tsurf Asurf ATOA OLR")
+                println(lat_io, "# Lat Tsurf Asurf ATOA OLR Fland")
                 for i in eachindex(r.x)
-                    @printf(lat_io, "%7.2f %8.2f %6.4f %6.4f %8.2f\n",
-                            prof.lat[i], prof.Tsurf[i], prof.Asurf[i], prof.ATOA[i], prof.OLR[i])
+                    @printf(lat_io, "%7.2f %8.2f %6.4f %6.4f %8.2f %6.4f\n",
+                            prof.lat[i], prof.Tsurf[i], prof.Asurf[i], prof.ATOA[i], prof.OLR[i], prof.Fland[i])
                 end
             end
 
@@ -579,8 +618,8 @@ function run_fillet_sweep(S0_factors::AbstractVector, obliquities::AbstractVecto
                 elapsed = time() - t_start
                 eta_str = n_done < n_total ?
                     "  ETA $(fmt_time(elapsed / n_done * (n_total - n_done)))" : ""
-                ice_str = g.IceLineNMin == 90.0 ? "  free" :
-                    @sprintf("%5.1f°", g.IceLineNMin)
+                ice_str = g.IceLineNMinSea == 90.0 ? "  free" :
+                    @sprintf("%5.1f°", g.IceLineNMinSea)
                 @printf("  [%3d/%d] obl=%2.0f°  S⊕=%.3f  Tglob=%6.1f K  ice=%s  %s elapsed%s\n",
                         n_done, n_total, Float64(obl), Float64(sf),
                         g.Tglob, ice_str, fmt_time(elapsed), eta_str)
@@ -620,35 +659,86 @@ Obliquity is fixed via p_base.obliquity.
 """
 function bifurcation_diagram(S0_range::AbstractVector;
                               p_base::Params = Params(),
+                              outdir::Union{Nothing,String} = nothing,
+                              label::String = "FILLET Experiment 3",
                               verbose::Bool = true)
     S0_sorted = sort(S0_range)
-
     mean_T  = Float64[]
     ice_lat = Float64[]
     all_S0  = Float64[]
     branch  = String[]
 
-    function run_branch!(branch_S0, branch_name, T0_val)
+    if !isnothing(outdir)
+        mkpath(outdir)
+    end
+    tag      = isnothing(outdir) ? "" : basename(outdir)
+    case_idx = Ref(0)
+
+    function run_branch!(branch_S0, branch_name, T0_val, global_io)
         T_prev = fill(T0_val, p_base.n)
         for S0 in branch_S0
             kw = Dict{Symbol,Any}(f => getfield(p_base, f) for f in fieldnames(Params))
             kw[:S0] = S0; kw[:max_years] = 400
-            r = equilibrium(Params(; kw...); T0=T_prev, verbose=false)
+            p = Params(; kw...)
+            r = equilibrium(p; T0=T_prev, verbose=false)
             push!(mean_T,  global_mean(r.T))
             push!(ice_lat, ice_edge_NH(r.T, r.x, r.p))
             push!(all_S0,  S0)
             push!(branch,  branch_name)
             T_prev = r.T
             verbose && print(branch_name == "cooling" ? "-" : "+")
+            if !isnothing(global_io)
+                g = fillet_global(r.T, r.x, r.p;
+                                  instellation=S0/S_earth,
+                                  case=case_idx[],
+                                  α_mean=r.α, olr_mean=r.olr)
+                println(global_io, join(string.(values(g)), " ") * " " * branch_name)
+                flush(global_io)
+                prof = fillet_profile(r.T, r.x, r.p; α_mean=r.α, olr_mean=r.olr)
+                open(joinpath(outdir, "lat_output_AVALON_$(tag)_$(case_idx[]).dat"), "w") do lat_io
+                    println(lat_io, "# Name of benchmark/experiment: $label")
+                    println(lat_io, "# Case number: $(case_idx[])")
+                    println(lat_io, "# Branch: $branch_name")
+                    println(lat_io, "# Instellation (S_earth): $(round(S0/S_earth, digits=6))")
+                    println(lat_io, "# XCO2 (ppm): $(p.CO2)")
+                    println(lat_io, "# Obliquity (degrees): $(p.obliquity)")
+                    println(lat_io, "# Mode: $(p.seasonal ? "seasonal" : "annual-mean")")
+                    println(lat_io, "#")
+                    println(lat_io, "# Columns of data (annually averaged for last orbit)")
+                    println(lat_io, "# Lat Tsurf Asurf ATOA OLR Fland")
+                    for i in eachindex(r.x)
+                        @printf(lat_io, "%7.2f %8.2f %6.4f %6.4f %8.2f %6.4f\n",
+                                prof.lat[i], prof.Tsurf[i], prof.Asurf[i], prof.ATOA[i], prof.OLR[i], prof.Fland[i])
+                    end
+                end
+                case_idx[] += 1
+            end
         end
     end
 
-    verbose && print("Cooling: ")
-    run_branch!(reverse(S0_sorted), "cooling", 30.0)
-    verbose && println()
-    verbose && print("Warming: ")
-    run_branch!(S0_sorted, "warming", -50.0)
-    verbose && println()
+    if !isnothing(outdir)
+        open(joinpath(outdir, "global_output_AVALON_$(tag).dat"), "w") do global_io
+            println(global_io, "# Name of benchmark/experiment: $label")
+            println(global_io, "# Model: AVALON (Albedo-feedback Variable Axial-tilt Latitudinal Outgoing-Net EBM)")
+            println(global_io, "# Mode: $(p_base.seasonal ? "seasonal" : "annual-mean")")
+            println(global_io, "# Ice line definition: latitude where annual-mean surface temperature crosses $(p_base.T_ice) °C")
+            println(global_io, "# Ice-free convention: NMaxLand=NMinLand=NMaxSea=NMinSea=90; SMaxLand=SMinLand=SMaxSea=SMinSea=-90")
+            println(global_io, "# Case Inst Obl XCO2 Tglob IceLineNMaxLand IceLineNMinLand IceLineNMaxSea IceLineNMinSea IceLineSMaxLand IceLineSMinLand IceLineSMaxSea IceLineSMinSea Diff OLRglob Branch")
+            verbose && print("Cooling: ")
+            run_branch!(reverse(S0_sorted), "cooling", 30.0, global_io)
+            verbose && println()
+            verbose && print("Warming: ")
+            run_branch!(S0_sorted, "warming", -50.0, global_io)
+            verbose && println()
+        end
+    else
+        verbose && print("Cooling: ")
+        run_branch!(reverse(S0_sorted), "cooling", 30.0, nothing)
+        verbose && println()
+        verbose && print("Warming: ")
+        run_branch!(S0_sorted, "warming", -50.0, nothing)
+        verbose && println()
+    end
 
     return (S0=all_S0, mean_T=mean_T, ice_lat=ice_lat, branch=branch)
 end
@@ -661,35 +751,85 @@ Recommended: `exp10.(range(0, 5, length=50))` for 1–100,000 ppm.
 """
 function co2_bifurcation(CO2_range::AbstractVector;
                           p_base::Params = Params(),
+                          outdir::Union{Nothing,String} = nothing,
+                          label::String = "FILLET Experiment 4",
                           verbose::Bool = true)
     CO2_sorted = sort(CO2_range)
-
     mean_T  = Float64[]
     ice_lat = Float64[]
     all_CO2 = Float64[]
     branch  = String[]
 
-    function run_branch!(branch_CO2, branch_name, T0_val)
+    if !isnothing(outdir)
+        mkpath(outdir)
+    end
+    tag      = isnothing(outdir) ? "" : basename(outdir)
+    case_idx = Ref(0)
+
+    function run_branch!(branch_CO2, branch_name, T0_val, global_io)
         T_prev = fill(T0_val, p_base.n)
         for co2 in branch_CO2
             kw = Dict{Symbol,Any}(f => getfield(p_base, f) for f in fieldnames(Params))
             kw[:CO2] = co2; kw[:max_years] = 400
-            r = equilibrium(Params(; kw...); T0=T_prev, verbose=false)
+            p = Params(; kw...)
+            r = equilibrium(p; T0=T_prev, verbose=false)
             push!(mean_T,  global_mean(r.T))
             push!(ice_lat, ice_edge_NH(r.T, r.x, r.p))
             push!(all_CO2, co2)
             push!(branch,  branch_name)
             T_prev = r.T
             verbose && print(branch_name == "cooling" ? "-" : "+")
+            if !isnothing(global_io)
+                g = fillet_global(r.T, r.x, r.p;
+                                  case=case_idx[],
+                                  α_mean=r.α, olr_mean=r.olr)
+                println(global_io, join(string.(values(g)), " ") * " " * branch_name)
+                flush(global_io)
+                prof = fillet_profile(r.T, r.x, r.p; α_mean=r.α, olr_mean=r.olr)
+                open(joinpath(outdir, "lat_output_AVALON_$(tag)_$(case_idx[]).dat"), "w") do lat_io
+                    println(lat_io, "# Name of benchmark/experiment: $label")
+                    println(lat_io, "# Case number: $(case_idx[])")
+                    println(lat_io, "# Branch: $branch_name")
+                    println(lat_io, "# Instellation (S_earth): $(round(p.S0/S_earth, digits=6))")
+                    println(lat_io, "# XCO2 (ppm): $(p.CO2)")
+                    println(lat_io, "# Obliquity (degrees): $(p.obliquity)")
+                    println(lat_io, "# Mode: $(p.seasonal ? "seasonal" : "annual-mean")")
+                    println(lat_io, "#")
+                    println(lat_io, "# Columns of data (annually averaged for last orbit)")
+                    println(lat_io, "# Lat Tsurf Asurf ATOA OLR Fland")
+                    for i in eachindex(r.x)
+                        @printf(lat_io, "%7.2f %8.2f %6.4f %6.4f %8.2f %6.4f\n",
+                                prof.lat[i], prof.Tsurf[i], prof.Asurf[i], prof.ATOA[i], prof.OLR[i], prof.Fland[i])
+                    end
+                end
+                case_idx[] += 1
+            end
         end
     end
 
-    verbose && print("Cooling (high→low CO₂): ")
-    run_branch!(reverse(CO2_sorted), "cooling", 30.0)
-    verbose && println()
-    verbose && print("Warming (low→high CO₂): ")
-    run_branch!(CO2_sorted, "warming", -50.0)
-    verbose && println()
+    if !isnothing(outdir)
+        open(joinpath(outdir, "global_output_AVALON_$(tag).dat"), "w") do global_io
+            println(global_io, "# Name of benchmark/experiment: $label")
+            println(global_io, "# Model: AVALON (Albedo-feedback Variable Axial-tilt Latitudinal Outgoing-Net EBM)")
+            println(global_io, "# Mode: $(p_base.seasonal ? "seasonal" : "annual-mean")")
+            println(global_io, "# Ice line definition: latitude where annual-mean surface temperature crosses $(p_base.T_ice) °C")
+            println(global_io, "# Ice-free convention: NMaxLand=NMinLand=NMaxSea=NMinSea=90; SMaxLand=SMinLand=SMaxSea=SMinSea=-90")
+            println(global_io, "# Case Inst Obl XCO2 Tglob IceLineNMaxLand IceLineNMinLand IceLineNMaxSea IceLineNMinSea IceLineSMaxLand IceLineSMinLand IceLineSMaxSea IceLineSMinSea Diff OLRglob Branch")
+            verbose && print("Cooling (high→low CO₂): ")
+            run_branch!(reverse(CO2_sorted), "cooling", 30.0, global_io)
+            verbose && println()
+            verbose && print("Warming (low→high CO₂): ")
+            run_branch!(CO2_sorted, "warming", -50.0, global_io)
+            verbose && println()
+        end
+    else
+        verbose && print("Cooling (high→low CO₂): ")
+        run_branch!(reverse(CO2_sorted), "cooling", 30.0, nothing)
+        verbose && println()
+        verbose && print("Warming (low→high CO₂): ")
+        run_branch!(CO2_sorted, "warming", -50.0, nothing)
+        verbose && println()
+    end
 
     return (CO2=all_CO2, mean_T=mean_T, ice_lat=ice_lat, branch=branch)
 end
@@ -735,13 +875,13 @@ Special keys (not Params fields):
   au=value  — set S0 from semi-major axis: S₀ = S⊕/a² [au]
 
 All other keys must be valid `Params` field names. The ASCII aliases
-`alpha_ocean` and `alpha_ice` map to `α_ocean` and `α_ice`.
+`alpha_land`, `alpha_ocean`, and `alpha_ice` map to `α_land`, `α_ocean`, and `α_ice`.
 
 Example:
     julia avalon.jl run obliquity=60 CO2=1000 seasonal=true out=highco2_obl60
 """
 function run_custom(args::Vector{String})
-    aliases = Dict("alpha_ocean" => "α_ocean", "alpha_ice" => "α_ice")
+    aliases = Dict("alpha_land" => "α_land", "alpha_ocean" => "α_ocean", "alpha_ice" => "α_ice")
     kw  = Dict{Symbol,Any}(f => getfield(Params(), f) for f in fieldnames(Params))
     tag = "run"
     au  = nothing
@@ -764,7 +904,7 @@ function run_custom(args::Vector{String})
             if sym ∉ fieldnames(Params)
                 println(stderr, "Error: unknown parameter '$k'")
                 println(stderr, "  Valid Params fields: $(join(fieldnames(Params), ", "))")
-                println(stderr, "  ASCII aliases: alpha_ocean, alpha_ice")
+                println(stderr, "  ASCII aliases: alpha_land, alpha_ocean, alpha_ice")
                 exit(1)
             end
             T = fieldtype(Params, sym)
@@ -799,7 +939,7 @@ end
 Run a named FILLET benchmark or experiment and write the official .dat output files.
 
 Usage:
-    julia avalon.jl benchmark1   # Benchmark 1: tuned to 288 K (seasonal, D=0.44, α=0.2709)
+    julia avalon.jl benchmark1   # Benchmark 1: tuned pre-industrial Earth (seasonal, D=0.52, C_ocean=2e8, Earth land fraction)
     julia avalon.jl benchmark2   # Benchmark 2: un-tuned, ε=23.5°
     julia avalon.jl benchmark3   # Benchmark 3: un-tuned, ε=60°
     julia avalon.jl exp1         # Experiment 1: warm-start instellation sweep
@@ -812,8 +952,10 @@ Usage:
 """
 function run_cli(cmd::String, extra_args::Vector{String}=String[])
     if cmd == "benchmark1"
-        println("FILLET Benchmark 1 (tuned, seasonal: D=0.44, α_ocean=0.2709, S₀=1361, ε=23.5°, CO₂=280 ppm)")
-        p = Params(D=0.44, α_ocean=0.2709, seasonal=true)
+        println("FILLET Benchmark 1 (tuned pre-industrial Earth: D=0.52, α_ocean=0.2689, C_ocean=2e8, Earth land fraction)")
+        x_ben1 = make_grid(Params())
+        p = Params(D=0.52, α_ocean=0.2689, C_ocean=2e8,
+                   land_fraction=earth_land_fraction(x_ben1), seasonal=true)
         r = equilibrium(p; verbose=true)
         write_fillet_output(r.T, r.x, p, "ben1", "ben1";
                             instellation=1.0, case=0,
@@ -879,29 +1021,21 @@ function run_cli(cmd::String, extra_args::Vector{String}=String[])
     elseif cmd == "exp3"
         println("FILLET Experiment 3: instellation bifurcation (0.8–1.5 S⊕, ε=23.5°)")
         S0_range = collect(range(0.8, 1.5, step=0.0125)) .* S_earth
-        bif = bifurcation_diagram(S0_range; verbose=true)
-        open("fillet_exp3_global_output.dat", "w") do io
-            println(io, "# Name of benchmark/experiment: FILLET Experiment 3")
-            println(io, "# Model: AVALON  |  obliquity=23.5°  |  CO2=280 ppm")
-            println(io, "# Case Inst branch mean_T_C ice_edge_lat_deg")
-            for i in eachindex(bif.S0)
-                println(io, "$i $(round(bif.S0[i]/S_earth,digits=4)) $(bif.branch[i]) $(bif.mean_T[i]) $(bif.ice_lat[i])")
-            end
-        end
-        println("→ fillet_exp3_global_output.dat")
+        bifurcation_diagram(S0_range;
+                            p_base=Params(seasonal=true),
+                            outdir="exp3",
+                            label="FILLET Experiment 3 (instellation bifurcation)",
+                            verbose=true)
+        println("→ exp3/  (lat_output_AVALON_exp3_{case}.dat × N + global_output_AVALON_exp3.dat)")
 
     elseif cmd == "exp4"
         println("FILLET Experiment 4: CO₂ bifurcation (1–100,000 ppm)")
-        co2bif = co2_bifurcation(exp10.(range(0, 5, length=50)); verbose=true)
-        open("fillet_exp4_global_output.dat", "w") do io
-            println(io, "# Name of benchmark/experiment: FILLET Experiment 4")
-            println(io, "# Model: AVALON  |  S0=1361 W/m²  |  obliquity=23.5°")
-            println(io, "# Case XCO2 branch mean_T_C ice_edge_lat_deg")
-            for i in eachindex(co2bif.CO2)
-                println(io, "$i $(co2bif.CO2[i]) $(co2bif.branch[i]) $(co2bif.mean_T[i]) $(co2bif.ice_lat[i])")
-            end
-        end
-        println("→ fillet_exp4_global_output.dat")
+        co2_bifurcation(exp10.(range(0, 5, length=50));
+                        p_base=Params(seasonal=true),
+                        outdir="exp4",
+                        label="FILLET Experiment 4 (CO₂ bifurcation)",
+                        verbose=true)
+        println("→ exp4/  (lat_output_AVALON_exp4_{case}.dat × N + global_output_AVALON_exp4.dat)")
 
     else
         println("""
@@ -910,7 +1044,7 @@ Unknown command: "$cmd"
 Usage:  julia avalon.jl <command> [key=value ...]
 
 Commands:
-  benchmark1   Benchmark 1 — tuned to 288 K (seasonal, D=0.44, α_ocean=0.2709)
+  benchmark1   Benchmark 1 — tuned to 288 K (seasonal, D=0.52, α_ocean=0.2689, C_ocean=2e8, Earth land fraction)
   benchmark2   Benchmark 2 — un-tuned, ε = 23.5°
   benchmark3   Benchmark 3 — un-tuned, ε = 60°
   run          Custom single case — accepts key=value parameter overrides
@@ -942,7 +1076,7 @@ Usage:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FILLET benchmarks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  benchmark1   Tuned to 288 K (seasonal, D=0.44, α_ocean=0.2709, ε=23.5°, CO₂=280 ppm)
+  benchmark1   Tuned pre-industrial Earth (seasonal, D=0.52, α_ocean=0.2689, C_ocean=2e8, Earth land fraction, ε=23.5°, CO₂=280 ppm)
                → ben1/
 
   benchmark2   Un-tuned default parameters (seasonal, ε=23.5°, CO₂=280 ppm)
@@ -958,8 +1092,8 @@ FILLET experiments
   exp2         Cold-start instellation sweep  (1.05–1.50 S⊕ × ε=0–90°)  → exp2/
   exp1a        Warm-start semi-major axis     (0.875–1.10 au × ε=0–90°)  → exp1a/
   exp2a        Cold-start semi-major axis     (0.80–0.975 au × ε=0–90°)  → exp2a/
-  exp3         Instellation bifurcation diagram (hysteresis)              → fillet_exp3_global_output.dat
-  exp4         CO₂ bifurcation diagram                                    → fillet_exp4_global_output.dat
+  exp3         Instellation bifurcation diagram (hysteresis)              → exp3/
+  exp4         CO₂ bifurcation diagram                                    → exp4/
 
   Experiments 1/2/1a/2a write one lat_output_AVALON_{exp}_{case}.dat per
   simulation plus a single global_output_AVALON_{exp}.dat summary.
@@ -983,7 +1117,8 @@ Custom single case
     D=<value>       diffusion coefficient        (default: 0.50)
     A=<W/m²>        OLR intercept               (default: 210.0)
     B=<W/m²/K>      OLR slope                   (default: 2.0)
-    alpha_ocean=<>  open ocean surface albedo    (default: 0.30)
+    alpha_land=<>   land surface albedo           (default: 0.30)
+    alpha_ocean=<>  open ocean surface albedo    (default: 0.20)
     alpha_ice=<>    ice surface albedo           (default: 0.60)
     T_ice=<°C>      ice threshold temperature    (default: -10.0)
     C_land=<J/m²K>  land heat capacity           (default: 1e7)
@@ -993,7 +1128,7 @@ Custom single case
     max_years=<N>   convergence limit            (default: 500)
 
   Note: land_fraction (per-band land fraction vector) can only be set
-  programmatically, not via the command line.
+  programmatically, not via the command line. Default: 0.25 uniform (FILLET Table 4).
 
   Examples:
     julia avalon.jl run obliquity=60 CO2=1000 seasonal=true out=highco2_obl60
