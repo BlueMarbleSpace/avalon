@@ -23,8 +23,10 @@ julia avalon.jl exp3                # Snowball Earth bifurcation diagram
 julia avalon.jl run S0=1200 obliquity=45 seasonal=true out=mycase
 
 # Visualize output (requires numpy, matplotlib)
-python3 plot.py ben2              # annual-mean 3-panel
+python3 plot.py ben2              # annual-mean panels (2×2 with land fraction, or 1×3)
 python3 plot.py ben1 seasonal     # Hovmöller + seasonal amplitude panel
+python3 plot.py exp1 sweep        # obliquity × instellation phase diagram (climate states + Tglob)
+python3 plot.py exp3 bifurcation  # hysteresis diagram (cooling/warming branches); also works for exp4
 ```
 
 All named commands: `benchmark1`, `benchmark2`, `benchmark3`, `exp1`, `exp2`, `exp1a`, `exp2a`, `exp3`, `exp4`, `run`. Run `julia avalon.jl help` for full CLI docs.

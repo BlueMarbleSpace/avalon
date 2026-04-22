@@ -678,7 +678,7 @@ function bifurcation_diagram(S0_range::AbstractVector;
         T_prev = fill(T0_val, p_base.n)
         for S0 in branch_S0
             kw = Dict{Symbol,Any}(f => getfield(p_base, f) for f in fieldnames(Params))
-            kw[:S0] = S0; kw[:max_years] = 400
+            kw[:S0] = S0; kw[:max_years] = 500
             p = Params(; kw...)
             r = equilibrium(p; T0=T_prev, verbose=false)
             push!(mean_T,  global_mean(r.T))
@@ -770,7 +770,7 @@ function co2_bifurcation(CO2_range::AbstractVector;
         T_prev = fill(T0_val, p_base.n)
         for co2 in branch_CO2
             kw = Dict{Symbol,Any}(f => getfield(p_base, f) for f in fieldnames(Params))
-            kw[:CO2] = co2; kw[:max_years] = 400
+            kw[:CO2] = co2; kw[:max_years] = 500
             p = Params(; kw...)
             r = equilibrium(p; T0=T_prev, verbose=false)
             push!(mean_T,  global_mean(r.T))
@@ -839,32 +839,7 @@ end
 # ============================================================
 
 function main()
-    println("=== AVALON: Albedo-feedback Variable Axial-tilt Latitudinal Outgoing-Net EBM ===\n")
-
-    println("FILLET Benchmark 2 — annual-mean mode (S0=1361 W/m², ε=23.5°, CO₂=280 ppm):")
-    p  = Params()
-    r  = equilibrium(p; verbose=true)
-    budget = energy_budget(r.T, r.x, p; α_mean=r.α, olr_mean=r.olr)
-    edges  = ice_edges(r.T, r.x, p)
-    println()
-    println("  Global mean T  : $(round(global_mean(r.T), digits=2)) °C")
-    println("  NH ice extent  : $(round(edges.NH_min, digits=1))° – $(round(edges.NH_max, digits=1))°")
-    println("  SW absorbed    : $(round(budget.SW_absorbed, digits=2)) W/m²")
-    println("  OLR            : $(round(budget.OLR, digits=2)) W/m²")
-    write_fillet_output(r.T, r.x, p, "ben2", "ben2"; α_mean=r.α, olr_mean=r.olr)
-    println("  → ben2/lat_output_AVALON_ben2.dat, ben2/global_output_AVALON_ben2.dat\n")
-
-    println("FILLET Benchmark 2 — seasonal mode:")
-    ps = Params(seasonal=true)
-    rs = equilibrium(ps; verbose=true)
-    println()
-    println("  Annual-mean T  : $(round(global_mean(rs.T), digits=2)) °C")
-    edges_s = ice_edges(rs.T, rs.x, ps)
-    println("  NH ice extent  : $(round(edges_s.NH_min, digits=1))° – $(round(edges_s.NH_max, digits=1))°")
-    write_fillet_output(rs.T, rs.x, ps, "ben2", "ben2_seasonal"; α_mean=rs.α, olr_mean=rs.olr)
-    println("  → ben2/lat_output_AVALON_ben2_seasonal.dat, ben2/global_output_AVALON_ben2_seasonal.dat")
-
-    return (annual=r, seasonal=rs)
+    print(HELP_TEXT)
 end
 
 """
@@ -1069,7 +1044,7 @@ AVALON — Albedo-feedback Variable Axial-tilt Latitudinal Outgoing-Net EBM
 A 1D Budyko-Sellers energy balance model for the FILLET intercomparison project.
 
 Usage:
-  julia avalon.jl                        # full demo
+  julia avalon.jl                        # print this help text
   julia avalon.jl <command> [key=value]
   julia avalon.jl --help
 
@@ -1136,17 +1111,30 @@ Custom single case
     julia avalon.jl run alpha_ocean=0.28 D=0.44 S0=1200
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Plotting
+Plotting  (requires numpy, matplotlib)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  python3 plot.py <tag>
+  python3 plot.py <tag>                Annual-mean diagnostic panels
+                                       (2×2 with land fraction, or 1×3 without)
+                                       Reads lat_output + global_output .dat files.
+                                       If <tag>_seasonal.csv exists, adds seasonal envelope.
 
-  Reads <tag>/lat_output_AVALON_<tag>.dat and global_output_AVALON_<tag>.dat,
-  and writes <tag>/<tag>.png and <tag>/<tag>.pdf.
-  If <tag>/<tag>_seasonal.csv exists, the temperature panel shows the seasonal envelope.
+  python3 plot.py <tag> seasonal       Hovmöller temperature plot + seasonal amplitude panel
+                                       Requires <tag>/<tag>_seasonal.csv
+
+  python3 plot.py <tag> sweep          Obliquity × instellation phase diagram
+                                       (climate states + global mean temperature)
+                                       For exp1, exp2, exp1a, exp2a
+
+  python3 plot.py <tag> bifurcation    Hysteresis diagram: Tglob and NH ice edge
+                                       vs instellation (exp3) or CO₂ (exp4, log scale)
+                                       Shows cooling and warming branches
 
   Examples:
     python3 plot.py ben1
-    python3 plot.py highco2_obl60
+    python3 plot.py ben1 seasonal
+    python3 plot.py exp1 sweep
+    python3 plot.py exp3 bifurcation
+    python3 plot.py exp4 bifurcation
 """
 
 if abspath(PROGRAM_FILE) == @__FILE__

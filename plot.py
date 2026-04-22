@@ -2,14 +2,18 @@
 Plot AVALON / FILLET benchmark output.
 
 Usage:
-    python3 plot.py <tag>           # annual-mean diagnostic panels
-    python3 plot.py <tag> seasonal  # seasonal cycle plots (requires {tag}_seasonal.csv)
+    python3 plot.py <tag>                # annual-mean diagnostic panels (2×2 if Fland present)
+    python3 plot.py <tag> seasonal       # Hovmöller + seasonal amplitude (requires {tag}_seasonal.csv)
+    python3 plot.py <tag> sweep          # obliquity×instellation phase diagram (exp1/2/1a/2a)
+    python3 plot.py <tag> bifurcation    # hysteresis diagram with cooling/warming branches (exp3/4)
 
-Reads {tag}/lat_output_AVALON_{tag}.dat and {tag}/global_output_AVALON_{tag}.dat,
-and writes {tag}/{tag}.png and {tag}/{tag}.pdf.
+Single-case plots read:
+    {tag}/lat_output_AVALON_{tag}.dat
+    {tag}/global_output_AVALON_{tag}.dat
+and write {tag}/{tag}.png and {tag}/{tag}.pdf.
 
-If a {tag}/{tag}_seasonal.csv file exists (monthly snapshots), the temperature
-panel shows the seasonal envelope as a shaded band.
+Sweep/bifurcation plots read {tag}/global_output_AVALON_{tag}.dat
+and write {tag}/{tag}_sweep.{png,pdf} or {tag}/{tag}_bifurcation.{png,pdf}.
 """
 
 import sys
@@ -241,10 +245,219 @@ def plot_seasonal(tag):
     plt.close()
 
 
+def _climate_state(nmax, nmin):
+    """Classify a single grid point into one of four FILLET climate states."""
+    if nmin == 90.0:
+        return "ice-free"
+    elif nmax < 90.0 and nmin == 0.0:
+        return "ice-belt"
+    elif nmin == 0.0:
+        return "snowball"
+    else:
+        return "ice-caps"
+
+
+def plot_sweep(tag):
+    """
+    Phase diagram for instellation × obliquity sweep experiments (exp1, exp2, exp1a, exp2a).
+    X-axis: obliquity (°), Y-axis: instellation (S⊕), colored by climate state.
+    Analogous to FILLET protocol Figure 3 / Figure 4.
+    """
+    from matplotlib.colors import BoundaryNorm, ListedColormap
+    from matplotlib.patches import Patch
+
+    global_file = os.path.join(tag, f"global_output_AVALON_{tag}.dat")
+    if not os.path.exists(global_file):
+        sys.exit(f"Error: {global_file} not found.")
+
+    data  = read_dat(global_file)
+    inst  = data["Inst"]
+    obl   = data["Obl"]
+    nmax  = data["IceLineNMaxSea"]
+    nmin  = data["IceLineNMinSea"]
+    tglob = data["Tglob"] - 273.15
+
+    states = np.array([_climate_state(nm, ni) for nm, ni in zip(nmax, nmin)])
+
+    # Fixed state ordering and colours (consistent across exp1/exp2)
+    STATE_ORDER  = ["ice-free", "ice-caps", "ice-belt", "snowball"]
+    STATE_COLORS = ["#a8d8ea", "#3a7ebf", "#e07b39", "#1a1a2e"]
+    state_idx    = {s: i for i, s in enumerate(STATE_ORDER)}
+
+    # Build regular 2-D grid (obliquity × instellation)
+    obliquities = np.array(sorted(set(np.round(obl, 4))))
+    inst_vals   = np.array(sorted(set(np.round(inst, 6))))
+    Z     = np.full((len(inst_vals), len(obliquities)), np.nan)
+    Tgrid = np.full((len(inst_vals), len(obliquities)), np.nan)
+
+    for s, o, st, tg in zip(inst, obl, states, tglob):
+        ii = np.searchsorted(inst_vals,   round(s, 6))
+        oi = np.searchsorted(obliquities, round(o, 4))
+        Z[ii, oi]     = state_idx[st]
+        Tgrid[ii, oi] = tg
+
+    # pcolormesh cell edges (half-step extension)
+    def _edges(arr):
+        d = np.diff(arr)
+        return np.concatenate([[arr[0] - d[0]/2], arr[:-1] + d/2, [arr[-1] + d[-1]/2]])
+
+    OBL_e  = _edges(obliquities)
+    INST_e = _edges(inst_vals)
+    OBL_m, INST_m = np.meshgrid(obliquities, inst_vals)
+
+    cmap  = ListedColormap(STATE_COLORS)
+    norm  = BoundaryNorm(np.arange(-0.5, 4), cmap.N)
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
+    fig.suptitle(f"AVALON — {tag.upper()} climate state diagram", fontsize=11)
+
+    # --- Left: climate state ---
+    ax = axes[0]
+    ax.pcolormesh(_edges(obliquities), _edges(inst_vals), Z,
+                  cmap=cmap, norm=norm, shading="flat")
+    # Contour lines at state boundaries
+    if not np.all(np.isnan(Z)):
+        try:
+            ax.contour(OBL_m, INST_m, Z, levels=[0.5, 1.5, 2.5],
+                       colors="white", linewidths=0.8, linestyles="-")
+        except Exception:
+            pass
+    ax.set_xlabel("Obliquity (°)")
+    ax.set_ylabel("Instellation (S⊕)")
+    ax.set_title("Climate state")
+    ax.set_xlim(obliquities[0] - 5, obliquities[-1] + 5)
+    ax.set_xticks(obliquities[::2])
+    legend_patches = [Patch(facecolor=STATE_COLORS[i], label=STATE_ORDER[i])
+                      for i in range(4) if i in [state_idx[s] for s in np.unique(states)]]
+    ax.legend(handles=legend_patches, fontsize=9, loc="upper left")
+
+    # --- Right: global mean temperature ---
+    ax2 = axes[1]
+    pcm = ax2.pcolormesh(_edges(obliquities), _edges(inst_vals), Tgrid,
+                         cmap="RdBu_r", shading="flat")
+    plt.colorbar(pcm, ax=ax2, label="Global mean temperature (°C)")
+    # Overlay state boundaries
+    if not np.all(np.isnan(Z)):
+        try:
+            ax2.contour(OBL_m, INST_m, Z, levels=[0.5, 1.5, 2.5],
+                        colors="black", linewidths=0.9, linestyles="--")
+        except Exception:
+            pass
+    ax2.set_xlabel("Obliquity (°)")
+    ax2.set_ylabel("Instellation (S⊕)")
+    ax2.set_title("Global mean temperature (°C)\n[dashed = state boundaries]")
+    ax2.set_xlim(obliquities[0] - 5, obliquities[-1] + 5)
+    ax2.set_xticks(obliquities[::2])
+
+    plt.tight_layout()
+    for ext in ("png", "pdf"):
+        out = os.path.join(tag, f"{tag}_sweep.{ext}")
+        plt.savefig(out, dpi=150, bbox_inches="tight", format=ext)
+        print(f"Saved {out}")
+    plt.close()
+
+
+def plot_bifurcation(tag):
+    """
+    Bifurcation (hysteresis) diagram for exp3 (instellation sweep) or exp4 (CO₂ sweep).
+    Two panels: global mean temperature and NH ice edge vs the swept parameter,
+    cooling and warming branches overlaid to show the bistable region.
+    """
+    global_file = os.path.join(tag, f"global_output_AVALON_{tag}.dat")
+    if not os.path.exists(global_file):
+        sys.exit(f"Error: {global_file} not found.")
+
+    data = read_dat(global_file)
+
+    # Detect swept parameter: CO2 varies in exp4, Inst in exp3
+    co2_vals = data["XCO2"]
+    is_co2   = co2_vals.min() != co2_vals.max()
+
+    if is_co2:
+        x_all   = co2_vals
+        xlabel  = "CO₂ (ppm)"
+        xlog    = True
+    else:
+        x_all   = data["Inst"]
+        xlabel  = "Instellation (S⊕)"
+        xlog    = False
+
+    tglob   = data["Tglob"] - 273.15
+    ice_min = data["IceLineNMinSea"]   # 90 = ice-free, 0 = snowball
+    branch  = np.array(data["Branch"]) if isinstance(data["Branch"][0], str) else data["Branch"]
+
+    BRANCH_STYLE = {
+        "cooling": dict(color="tab:blue",   lw=2.0, label="Cooling branch (warm start)"),
+        "warming": dict(color="tab:orange", lw=2.0, label="Warming branch (cold start)"),
+    }
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+    fig.suptitle(f"AVALON — {tag.upper()} bifurcation diagram", fontsize=11)
+
+    for br, style in BRANCH_STYLE.items():
+        mask = branch == br
+        if not np.any(mask):
+            continue
+        idx = np.argsort(x_all[mask])
+        x   = x_all[mask][idx]
+        tg  = tglob[mask][idx]
+        ic  = ice_min[mask][idx]
+
+        ax1.plot(x, tg, **style)
+        # Ice edge: replace 90 (ice-free) with NaN so it doesn't plot at 90°
+        ic_plot = np.where(ic == 90.0, np.nan, ic)
+        ax2.plot(x, ic_plot, **style)
+        # Mark snowball and ice-free endpoints
+        ax2.plot(x[ic == 0.0],  np.zeros(np.sum(ic == 0.0)),
+                 "v", color=style["color"], ms=5, zorder=3)
+        ax2.plot(x[ic == 90.0], np.full(np.sum(ic == 90.0), 90.0),
+                 "^", color=style["color"], ms=5, zorder=3,
+                 label=f"{br} ice-free" if np.any(ic == 90.0) else "")
+
+    # Shade bistable region (instellation range where both branches exist)
+    for br in ["cooling", "warming"]:
+        mask = branch == br
+        if np.any(mask):
+            pass
+    cool_x = x_all[branch == "cooling"]
+    warm_x = x_all[branch == "warming"]
+    if len(cool_x) and len(warm_x):
+        bistable_lo = max(cool_x.min(), warm_x.min())
+        bistable_hi = min(cool_x.max(), warm_x.max())
+        for ax in (ax1, ax2):
+            ax.axvspan(bistable_lo, bistable_hi, color="gray", alpha=0.08,
+                       label="Overlapping range")
+
+    ax1.axhline(-10, color="tab:blue", lw=0.8, ls="--", alpha=0.5, label="T = −10 °C")
+    ax1.axhline(0,   color="gray",     lw=0.6, ls=":")
+    ax1.set_xlabel(xlabel); ax1.set_ylabel("Global mean temperature (°C)")
+    ax1.set_title("Global mean temperature")
+    ax1.legend(fontsize=8)
+    if xlog: ax1.set_xscale("log")
+
+    ax2.axhline(0,  color="gray", lw=0.6, ls=":")
+    ax2.set_xlabel(xlabel); ax2.set_ylabel("NH ice edge (°)")
+    ax2.set_title("NH ice edge\n(triangle = ice-free / snowball endpoint)")
+    ax2.set_ylim(-5, 95)
+    ax2.legend(fontsize=8)
+    if xlog: ax2.set_xscale("log")
+
+    plt.tight_layout()
+    for ext in ("png", "pdf"):
+        out = os.path.join(tag, f"{tag}_bifurcation.{ext}")
+        plt.savefig(out, dpi=150, bbox_inches="tight", format=ext)
+        print(f"Saved {out}")
+    plt.close()
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        sys.exit("Usage: python3 plot.py <tag> [seasonal]\nExample: python3 plot.py ben1 seasonal")
+        sys.exit("Usage: python3 plot.py <tag> [seasonal|sweep]\nExample: python3 plot.py ben1 seasonal\n         python3 plot.py exp1 sweep")
     if len(sys.argv) == 3 and sys.argv[2] == "seasonal":
         plot_seasonal(sys.argv[1])
+    elif len(sys.argv) == 3 and sys.argv[2] == "sweep":
+        plot_sweep(sys.argv[1])
+    elif len(sys.argv) == 3 and sys.argv[2] == "bifurcation":
+        plot_bifurcation(sys.argv[1])
     else:
         plot_benchmark(sys.argv[1])
