@@ -1,5 +1,7 @@
 # AVALON
 
+![AVALON Logo](avalon_logo.svg)
+
 **AVALON** (Albedo-feedback Variable Axial-tilt Latitudinal Outgoing-Net EBM) is a 1D Budyko-Sellers energy balance model built for the [FILLET intercomparison project](https://doi.org/10.3847/PSJ/ae1c3c). It solves the latitude-dependent energy balance equation:
 
 ```
