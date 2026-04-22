@@ -117,7 +117,7 @@ Run `julia avalon.jl help` for the full list of parameters.
 
 AVALON was developed for the FILLET (Framework for Intercomparison of Low-complexity Latitudinal Energy-balance models and their Temperatures) project:
 
-- FILLET v1.0: [arXiv:2511.11957](https://arxiv.org/abs/2511.11957)
+- FILLET v1.0: [arXiv:2511.11957](https://doi.org/10.3847/psj/acba05)
 - FILLET v1.1: [doi:10.3847/PSJ/ae1c3c](https://doi.org/10.3847/PSJ/ae1c3c)
 
 **Known limitation:** AVALON uses a single temperature per latitudinal band (land and ocean are thermally blended), so it cannot produce a stable ice-belt state. This is a structural feature, not a bug; other FILLET models with separate land/ocean columns may find ice-belt solutions at high obliquity on the cold branch.
