@@ -8,18 +8,35 @@ Usage:
     python3 plot.py <tag> bifurcation    # hysteresis diagram with cooling/warming branches (exp3/4)
 
 Single-case plots read:
-    {tag}/lat_output_AVALON_{tag}.dat
-    {tag}/global_output_AVALON_{tag}.dat
-and write {tag}/{tag}.png and {tag}/{tag}.pdf.
+    experiments/{tag}/lat_output_AVALON_{tag}.dat
+    experiments/{tag}/global_output_AVALON_{tag}.dat
+and write experiments/{tag}/{tag}.png and .pdf.
 
-Sweep/bifurcation plots read {tag}/global_output_AVALON_{tag}.dat
-and write {tag}/{tag}_sweep.{png,pdf} or {tag}/{tag}_bifurcation.{png,pdf}.
+Sweep/bifurcation plots read experiments/{tag}/global_output_AVALON_{tag}.dat
+and write experiments/{tag}/{tag}_sweep.{png,pdf} or _{bifurcation,seasonal}.{png,pdf}.
 """
 
 import sys
 import os
 import numpy as np
 import matplotlib.pyplot as plt
+
+sys.dont_write_bytecode = True
+
+
+def _annual_mean_insolation(lat_deg, obliquity_deg, S0=1361.0, n_lambda=360):
+    """Annual-mean insolation [W m⁻²] using the Berger (1978) formula."""
+    eps = np.radians(obliquity_deg)
+    lat = np.radians(np.asarray(lat_deg, dtype=float))
+    Q = np.zeros_like(lat)
+    for k in range(n_lambda):
+        lam   = (k + 0.5) * (2 * np.pi / n_lambda)
+        delta = np.arcsin(np.sin(eps) * np.sin(lam))
+        t     = -np.tan(lat) * np.tan(delta)
+        H0    = np.where(t <= -1, np.pi, np.where(t >= 1, 0.0,
+                         np.arccos(np.clip(t, -1.0, 1.0))))
+        Q    += H0 * np.sin(lat) * np.sin(delta) + np.cos(lat) * np.cos(delta) * np.sin(H0)
+    return (S0 / np.pi) * Q / n_lambda
 
 
 def read_dat(path):
@@ -51,9 +68,10 @@ def read_dat(path):
 
 
 def plot_benchmark(tag):
-    lat_file      = os.path.join(tag, f"lat_output_AVALON_{tag}.dat")
-    global_file   = os.path.join(tag, f"global_output_AVALON_{tag}.dat")
-    seasonal_file = os.path.join(tag, f"{tag}_seasonal.csv")
+    outdir        = os.path.join("experiments", tag)
+    lat_file      = os.path.join(outdir, f"lat_output_AVALON_{tag}.dat")
+    global_file   = os.path.join(outdir, f"global_output_AVALON_{tag}.dat")
+    seasonal_file = os.path.join(outdir, f"{tag}_seasonal.csv")
 
     if not os.path.exists(lat_file) or not os.path.exists(global_file):
         sys.exit(f"Error: could not find {lat_file} or {global_file}\n"
@@ -72,10 +90,12 @@ def plot_benchmark(tag):
     ice_min = glob_data["IceLineNMinSea"][0]
     ice_min = None if ice_min == 90.0 else ice_min
 
-    # Absorbed SW from annual-mean insolation
-    x  = np.sin(np.deg2rad(lat))
-    P2 = (3*x**2 - 1) / 2
-    Q  = (1361/4) * (1 + (-0.482) * P2)
+    obl  = glob_data["Obl"][0]
+    co2  = glob_data["XCO2"][0]
+    inst = glob_data["Inst"][0]
+
+    # Absorbed SW using the actual obliquity and S0 from the run
+    Q  = _annual_mean_insolation(lat, obl, S0=inst * 1361.0)
     sw = (1 - alb) * Q
 
     # Read mode from header for subtitle
@@ -95,16 +115,6 @@ def plot_benchmark(tag):
             header = next(reader)
             rows = [list(map(float, r)) for r in reader]
         T_seas = np.array(rows)[:, 1:] - 273.15   # (12, n_lat)
-
-    # --- Build header from global file comments ---
-    meta = {}
-    with open(global_file) as f:
-        for line in f:
-            if "Instellation" in line:
-                meta["inst"] = line.split(":")[-1].strip() if ":" in line else "?"
-    obl  = glob_data["Obl"][0]
-    co2  = glob_data["XCO2"][0]
-    inst = glob_data["Inst"][0]
 
     title = (f"AVALON — {tag.replace('_', ' ').title()}\n"
              f"S₀ = {inst} S⊕,  ε = {obl}°,  CO₂ = {co2:.0f} ppm  "
@@ -170,7 +180,7 @@ def plot_benchmark(tag):
 
     plt.tight_layout()
     for ext in ("png", "pdf"):
-        out = os.path.join(tag, f"{tag}.{ext}")
+        out = os.path.join(outdir, f"{tag}.{ext}")
         plt.savefig(out, dpi=150, bbox_inches="tight", format=ext)
         print(f"Saved {out}")
     plt.close()
@@ -182,7 +192,8 @@ def plot_seasonal(tag):
       Left:  T(lat, month) Hovmöller with ice-threshold contour
       Right: seasonal amplitude (max − min) vs latitude
     """
-    seasonal_file = os.path.join(tag, f"{tag}_seasonal.csv")
+    outdir        = os.path.join("experiments", tag)
+    seasonal_file = os.path.join(outdir, f"{tag}_seasonal.csv")
     if not os.path.exists(seasonal_file):
         sys.exit(f"Error: {seasonal_file} not found. Run julia avalon.jl {tag} first.")
 
@@ -239,7 +250,7 @@ def plot_seasonal(tag):
 
     plt.tight_layout()
     for ext in ("png", "pdf"):
-        out = os.path.join(tag, f"{tag}_seasonal.{ext}")
+        out = os.path.join(outdir, f"{tag}_seasonal.{ext}")
         plt.savefig(out, dpi=150, bbox_inches="tight", format=ext)
         print(f"Saved {out}")
     plt.close()
@@ -266,7 +277,8 @@ def plot_sweep(tag):
     from matplotlib.colors import BoundaryNorm, ListedColormap
     from matplotlib.patches import Patch
 
-    global_file = os.path.join(tag, f"global_output_AVALON_{tag}.dat")
+    outdir      = os.path.join("experiments", tag)
+    global_file = os.path.join(outdir, f"global_output_AVALON_{tag}.dat")
     if not os.path.exists(global_file):
         sys.exit(f"Error: {global_file} not found.")
 
@@ -301,8 +313,6 @@ def plot_sweep(tag):
         d = np.diff(arr)
         return np.concatenate([[arr[0] - d[0]/2], arr[:-1] + d/2, [arr[-1] + d[-1]/2]])
 
-    OBL_e  = _edges(obliquities)
-    INST_e = _edges(inst_vals)
     OBL_m, INST_m = np.meshgrid(obliquities, inst_vals)
 
     cmap  = ListedColormap(STATE_COLORS)
@@ -351,7 +361,7 @@ def plot_sweep(tag):
 
     plt.tight_layout()
     for ext in ("png", "pdf"):
-        out = os.path.join(tag, f"{tag}_sweep.{ext}")
+        out = os.path.join(outdir, f"{tag}_sweep.{ext}")
         plt.savefig(out, dpi=150, bbox_inches="tight", format=ext)
         print(f"Saved {out}")
     plt.close()
@@ -363,7 +373,8 @@ def plot_bifurcation(tag):
     Two panels: global mean temperature and NH ice edge vs the swept parameter,
     cooling and warming branches overlaid to show the bistable region.
     """
-    global_file = os.path.join(tag, f"global_output_AVALON_{tag}.dat")
+    outdir      = os.path.join("experiments", tag)
+    global_file = os.path.join(outdir, f"global_output_AVALON_{tag}.dat")
     if not os.path.exists(global_file):
         sys.exit(f"Error: {global_file} not found.")
 
@@ -415,10 +426,6 @@ def plot_bifurcation(tag):
                  label=f"{br} ice-free" if np.any(ic == 90.0) else "")
 
     # Shade bistable region (instellation range where both branches exist)
-    for br in ["cooling", "warming"]:
-        mask = branch == br
-        if np.any(mask):
-            pass
     cool_x = x_all[branch == "cooling"]
     warm_x = x_all[branch == "warming"]
     if len(cool_x) and len(warm_x):
@@ -444,15 +451,19 @@ def plot_bifurcation(tag):
 
     plt.tight_layout()
     for ext in ("png", "pdf"):
-        out = os.path.join(tag, f"{tag}_bifurcation.{ext}")
+        out = os.path.join(outdir, f"{tag}_bifurcation.{ext}")
         plt.savefig(out, dpi=150, bbox_inches="tight", format=ext)
         print(f"Saved {out}")
     plt.close()
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        sys.exit("Usage: python3 plot.py <tag> [seasonal|sweep]\nExample: python3 plot.py ben1 seasonal\n         python3 plot.py exp1 sweep")
+    if len(sys.argv) < 2 or sys.argv[1] in ("--help", "-h"):
+        sys.exit("Usage: python3 plot.py <tag> [seasonal|sweep|bifurcation]\n"
+                 "Examples: python3 plot.py ben1\n"
+                 "          python3 plot.py ben1 seasonal\n"
+                 "          python3 plot.py exp1 sweep\n"
+                 "          python3 plot.py exp3 bifurcation")
     if len(sys.argv) == 3 and sys.argv[2] == "seasonal":
         plot_seasonal(sys.argv[1])
     elif len(sys.argv) == 3 and sys.argv[2] == "sweep":

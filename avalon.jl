@@ -563,7 +563,7 @@ Writes per-case `lat_output_AVALON_{tag}_{case}.dat` and one
 function run_fillet_sweep(S0_factors::AbstractVector, obliquities::AbstractVector;
                           warm_start::Bool  = true,
                           p_base::Params    = Params(),
-                          outdir::String    = warm_start ? "exp1" : "exp2",
+                          outdir::String    = warm_start ? joinpath("experiments","exp1") : joinpath("experiments","exp2"),
                           label::String     = warm_start ? "FILLET Experiment 1 (warm start)" :
                                                            "FILLET Experiment 2 (cold start)",
                           verbose::Bool     = true)
@@ -637,7 +637,7 @@ Instellation is set by S(a) = S⊕/a².
 function run_fillet_sweep_au(a_range::AbstractVector, obliquities::AbstractVector;
                               warm_start::Bool = true,
                               p_base::Params   = Params(),
-                              outdir::String   = warm_start ? "exp1a" : "exp2a",
+                              outdir::String   = warm_start ? joinpath("experiments","exp1a") : joinpath("experiments","exp2a"),
                               label::String    = warm_start ? "FILLET Experiment 1a (warm start, au)" :
                                                               "FILLET Experiment 2a (cold start, au)",
                               verbose::Bool    = true)
@@ -899,15 +899,16 @@ function run_custom(args::Vector{String})
     isempty(changed) ? println("Running with all default parameters.") :
                        println("Parameters: $(join(changed, "  "))")
 
+    outdir = joinpath("experiments", tag)
     r = equilibrium(p; verbose=true)
-    write_fillet_output(r.T, r.x, p, tag, tag;
+    write_fillet_output(r.T, r.x, p, outdir, tag;
                         instellation=p.S0/S_earth, case=0,
                         label="AVALON custom: $tag",
                         α_mean=r.α, olr_mean=r.olr,
                         T_seasonal=p.seasonal ? r.T_seasonal : nothing)
     println("Tglob = $(round(global_mean(r.T)+K_OFFSET, digits=2)) K  |  " *
             "ice edge: $(round(ice_edge_NH(r.T,r.x,p), digits=1))°")
-    println("→ $(tag)/lat_output_AVALON_$(tag).dat, $(tag)/global_output_AVALON_$(tag).dat")
+    println("→ $(outdir)/lat_output_AVALON_$(tag).dat, $(outdir)/global_output_AVALON_$(tag).dat")
 end
 
 """
@@ -932,63 +933,63 @@ function run_cli(cmd::String, extra_args::Vector{String}=String[])
         p = Params(D=0.52, α_ocean=0.2689, C_ocean=2e8,
                    land_fraction=earth_land_fraction(x_ben1), seasonal=true)
         r = equilibrium(p; verbose=true)
-        write_fillet_output(r.T, r.x, p, "ben1", "ben1";
+        write_fillet_output(r.T, r.x, p, joinpath("experiments","ben1"), "ben1";
                             instellation=1.0, case=0,
                             label="FILLET Benchmark 1",
                             α_mean=r.α, olr_mean=r.olr, T_seasonal=r.T_seasonal)
         println("Tglob = $(round(global_mean(r.T)+K_OFFSET, digits=2)) K  |  " *
                 "ice edge: $(round(ice_edge_NH(r.T,r.x,p), digits=1))°")
-        println("→ ben1/lat_output_AVALON_ben1.dat, ben1/global_output_AVALON_ben1.dat, ben1/ben1_seasonal.csv")
+        println("→ experiments/ben1/lat_output_AVALON_ben1.dat, experiments/ben1/global_output_AVALON_ben1.dat, experiments/ben1/ben1_seasonal.csv")
 
     elseif cmd == "benchmark2"
         println("FILLET Benchmark 2 (un-tuned, ε=23.5°)")
         p = Params(seasonal=true)
         r = equilibrium(p; verbose=true)
-        write_fillet_output(r.T, r.x, p, "ben2", "ben2";
+        write_fillet_output(r.T, r.x, p, joinpath("experiments","ben2"), "ben2";
                             instellation=1.0, case=0,
                             label="FILLET Benchmark 2",
                             α_mean=r.α, olr_mean=r.olr, T_seasonal=r.T_seasonal)
         println("Tglob = $(round(global_mean(r.T)+K_OFFSET, digits=2)) K")
-        println("→ ben2/lat_output_AVALON_ben2.dat, ben2/global_output_AVALON_ben2.dat")
+        println("→ experiments/ben2/lat_output_AVALON_ben2.dat, experiments/ben2/global_output_AVALON_ben2.dat, experiments/ben2/ben2_seasonal.csv")
 
     elseif cmd == "benchmark3"
         println("FILLET Benchmark 3 (un-tuned, ε=60°)")
         p = Params(obliquity=60.0, seasonal=true)
         r = equilibrium(p; verbose=true)
-        write_fillet_output(r.T, r.x, p, "ben3", "ben3";
+        write_fillet_output(r.T, r.x, p, joinpath("experiments","ben3"), "ben3";
                             instellation=1.0, case=0,
                             label="FILLET Benchmark 3",
                             α_mean=r.α, olr_mean=r.olr, T_seasonal=r.T_seasonal)
         println("Tglob = $(round(global_mean(r.T)+K_OFFSET, digits=2)) K")
-        println("→ ben3/lat_output_AVALON_ben3.dat, ben3/global_output_AVALON_ben3.dat")
+        println("→ experiments/ben3/lat_output_AVALON_ben3.dat, experiments/ben3/global_output_AVALON_ben3.dat, experiments/ben3/ben3_seasonal.csv")
 
     elseif cmd == "exp1"
         println("FILLET Experiment 1: warm-start instellation sweep (0.80–1.25 S⊕, ε=0–90°)")
         run_fillet_sweep(collect(range(0.80, 1.25, step=0.025)), collect(0:10:90);
                          warm_start=true, p_base=Params(seasonal=true),
-                         outdir="exp1", verbose=true)
-        println("→ exp1/  (lat_output_AVALON_exp1_{case}.dat × N + global_output_AVALON_exp1.dat)")
+                         outdir=joinpath("experiments","exp1"), verbose=true)
+        println("→ experiments/exp1/  (lat_output_AVALON_exp1_{case}.dat × N + global_output_AVALON_exp1.dat)")
 
     elseif cmd == "exp2"
         println("FILLET Experiment 2: cold-start instellation sweep (1.05–1.50 S⊕, ε=0–90°)")
         run_fillet_sweep(collect(range(1.05, 1.50, step=0.025)), collect(0:10:90);
                          warm_start=false, p_base=Params(seasonal=true),
-                         outdir="exp2", verbose=true)
-        println("→ exp2/  (lat_output_AVALON_exp2_{case}.dat × N + global_output_AVALON_exp2.dat)")
+                         outdir=joinpath("experiments","exp2"), verbose=true)
+        println("→ experiments/exp2/  (lat_output_AVALON_exp2_{case}.dat × N + global_output_AVALON_exp2.dat)")
 
     elseif cmd == "exp1a"
         println("FILLET Experiment 1a: warm-start semi-major axis sweep (0.875–1.10 au, ε=0–90°)")
         run_fillet_sweep_au(collect(range(0.875, 1.10, step=0.0125)), collect(0:10:90);
                             warm_start=true, p_base=Params(seasonal=true),
-                            outdir="exp1a", verbose=true)
-        println("→ exp1a/  (lat_output_AVALON_exp1a_{case}.dat × N + global_output_AVALON_exp1a.dat)")
+                            outdir=joinpath("experiments","exp1a"), verbose=true)
+        println("→ experiments/exp1a/  (lat_output_AVALON_exp1a_{case}.dat × N + global_output_AVALON_exp1a.dat)")
 
     elseif cmd == "exp2a"
         println("FILLET Experiment 2a: cold-start semi-major axis sweep (0.80–0.975 au, ε=0–90°)")
         run_fillet_sweep_au(collect(range(0.80, 0.975, step=0.0125)), collect(0:10:90);
                             warm_start=false, p_base=Params(seasonal=true),
-                            outdir="exp2a", verbose=true)
-        println("→ exp2a/  (lat_output_AVALON_exp2a_{case}.dat × N + global_output_AVALON_exp2a.dat)")
+                            outdir=joinpath("experiments","exp2a"), verbose=true)
+        println("→ experiments/exp2a/  (lat_output_AVALON_exp2a_{case}.dat × N + global_output_AVALON_exp2a.dat)")
 
     elseif cmd == "run"
         run_custom(extra_args)
@@ -998,19 +999,19 @@ function run_cli(cmd::String, extra_args::Vector{String}=String[])
         S0_range = collect(range(0.8, 1.5, step=0.0125)) .* S_earth
         bifurcation_diagram(S0_range;
                             p_base=Params(seasonal=true),
-                            outdir="exp3",
+                            outdir=joinpath("experiments","exp3"),
                             label="FILLET Experiment 3 (instellation bifurcation)",
                             verbose=true)
-        println("→ exp3/  (lat_output_AVALON_exp3_{case}.dat × N + global_output_AVALON_exp3.dat)")
+        println("→ experiments/exp3/  (lat_output_AVALON_exp3_{case}.dat × N + global_output_AVALON_exp3.dat)")
 
     elseif cmd == "exp4"
         println("FILLET Experiment 4: CO₂ bifurcation (1–100,000 ppm)")
         co2_bifurcation(exp10.(range(0, 5, length=50));
                         p_base=Params(seasonal=true),
-                        outdir="exp4",
+                        outdir=joinpath("experiments","exp4"),
                         label="FILLET Experiment 4 (CO₂ bifurcation)",
                         verbose=true)
-        println("→ exp4/  (lat_output_AVALON_exp4_{case}.dat × N + global_output_AVALON_exp4.dat)")
+        println("→ experiments/exp4/  (lat_output_AVALON_exp4_{case}.dat × N + global_output_AVALON_exp4.dat)")
 
     else
         println("""
@@ -1019,16 +1020,16 @@ Unknown command: "$cmd"
 Usage:  julia avalon.jl <command> [key=value ...]
 
 Commands:
-  benchmark1   Benchmark 1 — tuned to 288 K (seasonal, D=0.52, α_ocean=0.2689, C_ocean=2e8, Earth land fraction)
-  benchmark2   Benchmark 2 — un-tuned, ε = 23.5°
-  benchmark3   Benchmark 3 — un-tuned, ε = 60°
-  run          Custom single case — accepts key=value parameter overrides
-  exp1         Experiment 1 — warm-start instellation sweep (0.80–1.25 S⊕, ε=0–90°)
-  exp2         Experiment 2 — cold-start instellation sweep (1.05–1.50 S⊕, ε=0–90°)
-  exp1a        Experiment 1a — warm-start semi-major axis sweep (0.875–1.10 au, ε=0–90°)
-  exp2a        Experiment 2a — cold-start semi-major axis sweep (0.80–0.975 au, ε=0–90°)
-  exp3         Experiment 3 — instellation bifurcation
-  exp4         Experiment 4 — CO₂ bifurcation
+  benchmark1   Benchmark 1 — tuned to 288 K (seasonal, D=0.52, α_ocean=0.2689, C_ocean=2e8, Earth land fraction) → experiments/ben1/
+  benchmark2   Benchmark 2 — un-tuned, ε = 23.5°  → experiments/ben2/
+  benchmark3   Benchmark 3 — un-tuned, ε = 60°    → experiments/ben3/
+  run          Custom single case — accepts key=value parameter overrides  → experiments/<tag>/
+  exp1         Experiment 1 — warm-start instellation sweep (0.80–1.25 S⊕, ε=0–90°)  → experiments/exp1/
+  exp2         Experiment 2 — cold-start instellation sweep (1.05–1.50 S⊕, ε=0–90°)  → experiments/exp2/
+  exp1a        Experiment 1a — warm-start semi-major axis sweep (0.875–1.10 au, ε=0–90°)  → experiments/exp1a/
+  exp2a        Experiment 2a — cold-start semi-major axis sweep (0.80–0.975 au, ε=0–90°)  → experiments/exp2a/
+  exp3         Experiment 3 — instellation bifurcation  → experiments/exp3/
+  exp4         Experiment 4 — CO₂ bifurcation           → experiments/exp4/
   (no args)    Print help text
 
 run examples:
@@ -1052,23 +1053,23 @@ Usage:
 FILLET benchmarks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   benchmark1   Tuned pre-industrial Earth (seasonal, D=0.52, α_ocean=0.2689, C_ocean=2e8, Earth land fraction, ε=23.5°, CO₂=280 ppm)
-               → ben1/
+               → experiments/ben1/
 
   benchmark2   Un-tuned default parameters (seasonal, ε=23.5°, CO₂=280 ppm)
-               → ben2/
+               → experiments/ben2/
 
   benchmark3   Un-tuned, high obliquity (seasonal, ε=60°, CO₂=280 ppm)
-               → ben3/
+               → experiments/ben3/
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FILLET experiments
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  exp1         Warm-start instellation sweep  (0.80–1.25 S⊕ × ε=0–90°)  → exp1/
-  exp2         Cold-start instellation sweep  (1.05–1.50 S⊕ × ε=0–90°)  → exp2/
-  exp1a        Warm-start semi-major axis     (0.875–1.10 au × ε=0–90°)  → exp1a/
-  exp2a        Cold-start semi-major axis     (0.80–0.975 au × ε=0–90°)  → exp2a/
-  exp3         Instellation bifurcation diagram (hysteresis)              → exp3/
-  exp4         CO₂ bifurcation diagram                                    → exp4/
+  exp1         Warm-start instellation sweep  (0.80–1.25 S⊕ × ε=0–90°)  → experiments/exp1/
+  exp2         Cold-start instellation sweep  (1.05–1.50 S⊕ × ε=0–90°)  → experiments/exp2/
+  exp1a        Warm-start semi-major axis     (0.875–1.10 au × ε=0–90°)  → experiments/exp1a/
+  exp2a        Cold-start semi-major axis     (0.80–0.975 au × ε=0–90°)  → experiments/exp2a/
+  exp3         Instellation bifurcation diagram (hysteresis)              → experiments/exp3/
+  exp4         CO₂ bifurcation diagram                                    → experiments/exp4/
 
   Experiments 1/2/1a/2a write one lat_output_AVALON_{exp}_{case}.dat per
   simulation plus a single global_output_AVALON_{exp}.dat summary.
@@ -1081,7 +1082,7 @@ Custom single case
   Override any model parameter by name.  Output goes to out=<tag> (default: run/).
 
   Special keys:
-    out=<tag>       output directory and file tag  (default: run)
+    out=<tag>       output tag; files go to experiments/<tag>/  (default: run)
     au=<value>      set instellation from semi-major axis: S₀ = S⊕/a² [au]
 
   Model parameters (key=value):

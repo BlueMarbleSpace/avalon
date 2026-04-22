@@ -72,15 +72,15 @@ Everything lives in `avalon.jl` (~1110 lines). Key layers from bottom to top:
 
 ## Output format
 
-FILLET `.dat` files are space-separated with `#`-commented headers. `plot.py` reads these via `read_dat()` and optionally reads `{tag}_seasonal.csv` for a seasonal temperature envelope. Plots go to `{tag}/{tag}.png` and `{tag}/{tag}.pdf`.
+FILLET `.dat` files are space-separated with `#`-commented headers. `plot.py` reads these via `read_dat()` and optionally reads `{tag}_seasonal.csv` for a seasonal temperature envelope. All output goes under `experiments/`; plots go to `experiments/{tag}/{tag}.png` and `.pdf`.
 
 Single-case runs (benchmarks, `run`) write two files per tag:
-- `{tag}/lat_output_AVALON_{tag}.dat` — per-latitude fields
-- `{tag}/global_output_AVALON_{tag}.dat` — scalar diagnostics
+- `experiments/{tag}/lat_output_AVALON_{tag}.dat` — per-latitude fields
+- `experiments/{tag}/global_output_AVALON_{tag}.dat` — scalar diagnostics
 
 Sweep experiments (exp1/exp2/exp1a/exp2a) write a per-case lat file for each (obliquity, S₀) pair plus one global summary:
-- `{outdir}/lat_output_AVALON_{tag}_{case}.dat` — one per simulation
-- `{outdir}/global_output_AVALON_{tag}.dat` — all cases in one table
+- `experiments/{tag}/lat_output_AVALON_{tag}_{case}.dat` — one per simulation
+- `experiments/{tag}/global_output_AVALON_{tag}.dat` — all cases in one table
 
 ## Key numerical choices
 

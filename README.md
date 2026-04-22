@@ -50,15 +50,15 @@ All benchmarks and experiments use FILLET v1.1 Table 4 defaults unless noted. Se
 
 | Command | Description | Output |
 |---------|-------------|--------|
-| `benchmark1` | Tuned Earth: D=0.52, α_ocean=0.2689, C_ocean=2×10⁸, latitude-dependent land fraction | `ben1/` |
-| `benchmark2` | FILLET defaults, ε=23.5° | `ben2/` |
-| `benchmark3` | FILLET defaults, ε=60° | `ben3/` |
-| `exp1` | Warm-start instellation sweep (0.80–1.25 S⊕ × ε=0–90°) | `exp1/` |
-| `exp2` | Cold-start instellation sweep (1.05–1.50 S⊕ × ε=0–90°) | `exp2/` |
-| `exp1a` | Warm-start semi-major axis sweep (0.875–1.10 au × ε=0–90°) | `exp1a/` |
-| `exp2a` | Cold-start semi-major axis sweep (0.80–0.975 au × ε=0–90°) | `exp2a/` |
-| `exp3` | Instellation bifurcation diagram (0.8–1.5 S⊕, hysteresis) | `exp3/` |
-| `exp4` | CO₂ bifurcation diagram (1–100,000 ppm) | `exp4/` |
+| `benchmark1` | Tuned Earth: D=0.52, α_ocean=0.2689, C_ocean=2×10⁸, latitude-dependent land fraction | `experiments/ben1/` |
+| `benchmark2` | FILLET defaults, ε=23.5° | `experiments/ben2/` |
+| `benchmark3` | FILLET defaults, ε=60° | `experiments/ben3/` |
+| `exp1` | Warm-start instellation sweep (0.80–1.25 S⊕ × ε=0–90°) | `experiments/exp1/` |
+| `exp2` | Cold-start instellation sweep (1.05–1.50 S⊕ × ε=0–90°) | `experiments/exp2/` |
+| `exp1a` | Warm-start semi-major axis sweep (0.875–1.10 au × ε=0–90°) | `experiments/exp1a/` |
+| `exp2a` | Cold-start semi-major axis sweep (0.80–0.975 au × ε=0–90°) | `experiments/exp2a/` |
+| `exp3` | Instellation bifurcation diagram (0.8–1.5 S⊕, hysteresis) | `experiments/exp3/` |
+| `exp4` | CO₂ bifurcation diagram (1–100,000 ppm) | `experiments/exp4/` |
 
 **FILLET Table 4 defaults** (benchmarks 2/3 and all experiments):
 
@@ -73,17 +73,17 @@ All benchmarks and experiments use FILLET v1.1 Table 4 defaults unless noted. Se
 
 FILLET `.dat` files are space-separated with `#`-commented headers.
 
-Single-case runs (benchmarks, `run`) produce:
+All output is written under `experiments/`. Single-case runs (benchmarks, `run`) produce:
 ```
-{tag}/lat_output_AVALON_{tag}.dat      # per-latitude: Lat Tsurf Asurf ATOA OLR Fland
-{tag}/global_output_AVALON_{tag}.dat   # scalar diagnostics (FILLET v1.1 column format)
-{tag}/{tag}_seasonal.csv               # monthly temperature snapshots (seasonal mode)
+experiments/{tag}/lat_output_AVALON_{tag}.dat      # per-latitude: Lat Tsurf Asurf ATOA OLR Fland
+experiments/{tag}/global_output_AVALON_{tag}.dat   # scalar diagnostics (FILLET v1.1 column format)
+experiments/{tag}/{tag}_seasonal.csv               # monthly temperature snapshots (seasonal mode)
 ```
 
 Sweep experiments (exp1/2/1a/2a) produce one lat file per simulation plus a global summary:
 ```
-{tag}/lat_output_AVALON_{tag}_{case}.dat   # one per (obliquity, S₀) pair
-{tag}/global_output_AVALON_{tag}.dat       # all cases in one table
+experiments/{tag}/lat_output_AVALON_{tag}_{case}.dat   # one per (obliquity, S₀) pair
+experiments/{tag}/global_output_AVALON_{tag}.dat       # all cases in one table
 ```
 
 Bifurcation experiments (exp3/4) produce the same layout, with a `Branch` column (cooling/warming) appended to the global summary.
@@ -97,7 +97,7 @@ python3 plot.py <tag> sweep          # Obliquity × instellation phase diagram (
 python3 plot.py <tag> bifurcation    # Hysteresis diagram with cooling/warming branches (exp3/4)
 ```
 
-Plots are written to `{tag}/{tag}.png` / `.pdf` (benchmarks) or `{tag}/{tag}_{mode}.png` / `.pdf` (sweep/bifurcation/seasonal).
+Plots are written to `experiments/{tag}/{tag}.png` / `.pdf` (benchmarks) or `experiments/{tag}/{tag}_{mode}.png` / `.pdf` (sweep/bifurcation/seasonal).
 
 ## Custom runs
 
