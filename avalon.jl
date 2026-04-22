@@ -923,7 +923,7 @@ Usage:
     julia avalon.jl exp2a        # Experiment 2a: cold-start semi-major axis sweep
     julia avalon.jl exp3         # Experiment 3: instellation bifurcation
     julia avalon.jl exp4         # Experiment 4: CO₂ bifurcation
-    julia avalon.jl              # Full demo (all of the above)
+    julia avalon.jl              # print help text
 """
 function run_cli(cmd::String, extra_args::Vector{String}=String[])
     if cmd == "benchmark1"
@@ -1029,7 +1029,7 @@ Commands:
   exp2a        Experiment 2a — cold-start semi-major axis sweep (0.80–0.975 au, ε=0–90°)
   exp3         Experiment 3 — instellation bifurcation
   exp4         Experiment 4 — CO₂ bifurcation
-  (no args)    Full demo
+  (no args)    Print help text
 
 run examples:
   julia avalon.jl run obliquity=60 CO2=1000 seasonal=true out=highco2_obl60
