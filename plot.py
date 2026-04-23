@@ -74,8 +74,11 @@ def plot_benchmark(tag):
     seasonal_file = os.path.join(outdir, f"{tag}_seasonal.csv")
 
     if not os.path.exists(lat_file) or not os.path.exists(global_file):
-        sys.exit(f"Error: could not find {lat_file} or {global_file}\n"
-                 f"  (Run 'julia avalon.jl {tag}' first, or check the tag name)")
+        TAG_TO_CMD = {"ben1": "benchmark1", "ben2": "benchmark2", "ben3": "benchmark3"}
+        cmd = TAG_TO_CMD.get(tag, tag)
+        sys.exit(f"Error: output files for '{tag}' not found.\n"
+                 f"  Run: julia avalon.jl {cmd}\n"
+                 f"  (or check that '{tag}' is the correct tag name)")
 
     lat_data = read_dat(lat_file)
     glob_data = read_dat(global_file)
@@ -195,7 +198,14 @@ def plot_seasonal(tag):
     outdir        = os.path.join("experiments", tag)
     seasonal_file = os.path.join(outdir, f"{tag}_seasonal.csv")
     if not os.path.exists(seasonal_file):
-        sys.exit(f"Error: {seasonal_file} not found. Run julia avalon.jl {tag} first.")
+        TAG_TO_CMD = {"ben1": "benchmark1", "ben2": "benchmark2", "ben3": "benchmark3"}
+        cmd   = TAG_TO_CMD.get(tag, tag)
+        extra = "" if tag in TAG_TO_CMD else " seasonal=true"
+        sys.exit(
+            f"Error: {seasonal_file} not found.\n"
+            f"  Run: julia avalon.jl {cmd}{extra}\n"
+            f"  or check that '{tag}' is the correct experiment tag."
+        )
 
     import csv
     with open(seasonal_file) as f:
@@ -280,7 +290,8 @@ def plot_sweep(tag):
     outdir      = os.path.join("experiments", tag)
     global_file = os.path.join(outdir, f"global_output_AVALON_{tag}.dat")
     if not os.path.exists(global_file):
-        sys.exit(f"Error: {global_file} not found.")
+        sys.exit(f"Error: {global_file} not found.\n"
+                 f"  Run: julia avalon.jl {tag}")
 
     data  = read_dat(global_file)
     inst  = data["Inst"]
@@ -288,6 +299,16 @@ def plot_sweep(tag):
     nmax  = data["IceLineNMaxSea"]
     nmin  = data["IceLineNMinSea"]
     tglob = data["Tglob"] - 273.15
+
+    n_obl  = len(set(np.round(obl,  4)))
+    n_inst = len(set(np.round(inst, 6)))
+    if n_obl < 2 or n_inst < 2:
+        sys.exit(
+            f"Error: '{tag}' does not look like a sweep experiment "
+            f"(found {n_obl} obliquity value(s) and {n_inst} instellation value(s)).\n"
+            f"  'sweep' requires an obliquity × instellation grid — intended for exp1, exp2, exp1a, exp2a.\n"
+            f"  For a single-case run, use:  python3 plot.py {tag}"
+        )
 
     states = np.array([_climate_state(nm, ni) for nm, ni in zip(nmax, nmin)])
 
@@ -376,9 +397,18 @@ def plot_bifurcation(tag):
     outdir      = os.path.join("experiments", tag)
     global_file = os.path.join(outdir, f"global_output_AVALON_{tag}.dat")
     if not os.path.exists(global_file):
-        sys.exit(f"Error: {global_file} not found.")
+        sys.exit(f"Error: {global_file} not found.\n"
+                 f"  Run: julia avalon.jl {tag}")
 
     data = read_dat(global_file)
+
+    if "Branch" not in data:
+        sys.exit(
+            f"Error: '{tag}' does not look like a bifurcation experiment "
+            f"(no 'Branch' column found in {global_file}).\n"
+            f"  'bifurcation' requires cooling/warming branch data — intended for exp3, exp4.\n"
+            f"  For a single-case run, use:  python3 plot.py {tag}"
+        )
 
     # Detect swept parameter: CO2 varies in exp4, Inst in exp3
     co2_vals = data["XCO2"]
@@ -470,5 +500,9 @@ if __name__ == "__main__":
         plot_sweep(sys.argv[1])
     elif len(sys.argv) == 3 and sys.argv[2] == "bifurcation":
         plot_bifurcation(sys.argv[1])
+    elif len(sys.argv) == 3:
+        sys.exit(f"Error: unknown plot mode '{sys.argv[2]}'.\n"
+                 f"  Valid modes: seasonal, sweep, bifurcation\n"
+                 f"  To plot annual-mean panels, omit the mode: python3 plot.py {sys.argv[1]}")
     else:
         plot_benchmark(sys.argv[1])

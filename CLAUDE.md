@@ -10,7 +10,7 @@ AVALON (Albedo-feedback Variable Axial-tilt Latitudinal Outgoing-Net EBM) is a 1
 C ∂T/∂t = Q(x,t)·(1−α(T)) − OLR(T, CO₂) + D·∂/∂x[(1−x²)·∂T/∂x]
 ```
 
-where `x = sin(lat)`. Built for the FILLET intercomparison project (v1.0: arxiv.org/abs/2511.11957; v1.1: doi:10.3847/PSJ/ae1c3c). Output format is FILLET v1.1 compliant (8-column ice line format).
+where `x = sin(lat)`. Built for the FILLET intercomparison project (v1.0: doi:10.3847/PSJ/acba05; v1.1: doi:10.3847/PSJ/ae1c3c). Output format is FILLET v1.1 compliant (8-column ice line format).
 
 **No external Julia dependencies** — only `LinearAlgebra`, `Statistics`, `Printf` from stdlib.
 
@@ -33,7 +33,7 @@ All named commands: `benchmark1`, `benchmark2`, `benchmark3`, `exp1`, `exp2`, `e
 
 ## Architecture
 
-Everything lives in `avalon.jl` (~1110 lines). Key layers from bottom to top:
+Everything lives in `avalon.jl` (~1160 lines). Key layers from bottom to top:
 
 1. **`Params` struct** (line ~41) — all physical/numerical constants in one place; modify here to change defaults.
 
@@ -56,7 +56,7 @@ Everything lives in `avalon.jl` (~1110 lines). Key layers from bottom to top:
    - `run_ebm()` — integrates to convergence (annual-mean → fixed point; seasonal → limit cycle)
    - `equilibrium()` — wrapper returning `(T, α, olr, T_seasonal, years)`
 
-6. **Diagnostics** (line ~360): `global_mean()`, `ice_edges()`, `energy_budget()`
+6. **Diagnostics** (line ~360): `global_mean()`, `ice_edges()`, `ice_edge_NH()`, `fmt_ice()`, `energy_budget()`
 
 7. **FILLET I/O** (line ~430): `write_fillet_output()` writes `lat_output_AVALON_{tag}.dat` and `global_output_AVALON_{tag}.dat`
 

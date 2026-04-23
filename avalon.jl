@@ -27,7 +27,7 @@ References:
   Berger (1978, J. Atmos. Sci.) for obliquity-dependent insolation
   Myhre et al. (1998) for CO₂ forcing coefficient
 
-FILLET intercomparison: arxiv.org/abs/2511.11957
+FILLET intercomparison: doi:10.3847/PSJ/ae1c3c
 """
 
 using LinearAlgebra
@@ -415,6 +415,11 @@ function ice_edge_NH(T::AbstractVector, x::AbstractVector, p::Params)
     return e.NH_min == 90.0 ? NaN : e.NH_min
 end
 
+"""Format NH ice-edge for display: "ice-free" if no ice, otherwise "XX.X°"."""
+fmt_ice(T, x, p) = let e = ice_edge_NH(T, x, p)
+    isnan(e) ? "ice-free" : @sprintf("%.1f°", e)
+end
+
 """
 Global energy budget. Returns (SW_absorbed, OLR, imbalance) in W m⁻².
 Uses annual-mean Q and the provided α (may be annual-mean α in seasonal mode).
@@ -578,6 +583,7 @@ function run_fillet_sweep(S0_factors::AbstractVector, obliquities::AbstractVecto
     open(global_path, "w") do io
         println(io, "# Name of benchmark/experiment: $label")
         println(io, "# Model: AVALON (Albedo-feedback Variable Axial-tilt Latitudinal Outgoing-Net EBM)")
+        println(io, "# Mode: $(p_base.seasonal ? "seasonal" : "annual-mean")")
         println(io, "# Ice line definition: latitude where annual-mean surface temperature crosses $(p_base.T_ice) °C")
         println(io, "# Ice-free convention: NMaxLand=NMinLand=NMaxSea=NMinSea=90; SMaxLand=SMinLand=SMaxSea=SMinSea=-90")
         println(io, "# Case Inst Obl XCO2 Tglob IceLineNMaxLand IceLineNMinLand IceLineNMaxSea IceLineNMinSea IceLineSMaxLand IceLineSMinLand IceLineSMaxSea IceLineSMinSea Diff OLRglob")
@@ -835,7 +841,7 @@ function co2_bifurcation(CO2_range::AbstractVector;
 end
 
 # ============================================================
-# Demo
+# CLI
 # ============================================================
 
 function main()
@@ -907,7 +913,7 @@ function run_custom(args::Vector{String})
                         α_mean=r.α, olr_mean=r.olr,
                         T_seasonal=p.seasonal ? r.T_seasonal : nothing)
     println("Tglob = $(round(global_mean(r.T)+K_OFFSET, digits=2)) K  |  " *
-            "ice edge: $(round(ice_edge_NH(r.T,r.x,p), digits=1))°")
+            "ice edge: $(fmt_ice(r.T, r.x, p))")
     println("→ $(outdir)/lat_output_AVALON_$(tag).dat, $(outdir)/global_output_AVALON_$(tag).dat")
 end
 
@@ -938,7 +944,7 @@ function run_cli(cmd::String, extra_args::Vector{String}=String[])
                             label="FILLET Benchmark 1",
                             α_mean=r.α, olr_mean=r.olr, T_seasonal=r.T_seasonal)
         println("Tglob = $(round(global_mean(r.T)+K_OFFSET, digits=2)) K  |  " *
-                "ice edge: $(round(ice_edge_NH(r.T,r.x,p), digits=1))°")
+                "ice edge: $(fmt_ice(r.T, r.x, p))")
         println("→ experiments/ben1/lat_output_AVALON_ben1.dat, experiments/ben1/global_output_AVALON_ben1.dat, experiments/ben1/ben1_seasonal.csv")
 
     elseif cmd == "benchmark2"
@@ -949,7 +955,8 @@ function run_cli(cmd::String, extra_args::Vector{String}=String[])
                             instellation=1.0, case=0,
                             label="FILLET Benchmark 2",
                             α_mean=r.α, olr_mean=r.olr, T_seasonal=r.T_seasonal)
-        println("Tglob = $(round(global_mean(r.T)+K_OFFSET, digits=2)) K")
+        println("Tglob = $(round(global_mean(r.T)+K_OFFSET, digits=2)) K  |  " *
+                "ice edge: $(fmt_ice(r.T, r.x, p))")
         println("→ experiments/ben2/lat_output_AVALON_ben2.dat, experiments/ben2/global_output_AVALON_ben2.dat, experiments/ben2/ben2_seasonal.csv")
 
     elseif cmd == "benchmark3"
@@ -960,7 +967,8 @@ function run_cli(cmd::String, extra_args::Vector{String}=String[])
                             instellation=1.0, case=0,
                             label="FILLET Benchmark 3",
                             α_mean=r.α, olr_mean=r.olr, T_seasonal=r.T_seasonal)
-        println("Tglob = $(round(global_mean(r.T)+K_OFFSET, digits=2)) K")
+        println("Tglob = $(round(global_mean(r.T)+K_OFFSET, digits=2)) K  |  " *
+                "ice edge: $(fmt_ice(r.T, r.x, p))")
         println("→ experiments/ben3/lat_output_AVALON_ben3.dat, experiments/ben3/global_output_AVALON_ben3.dat, experiments/ben3/ben3_seasonal.csv")
 
     elseif cmd == "exp1"
@@ -1030,7 +1038,7 @@ Commands:
   exp2a        Experiment 2a — cold-start semi-major axis sweep (0.80–0.975 au, ε=0–90°)  → experiments/exp2a/
   exp3         Experiment 3 — instellation bifurcation  → experiments/exp3/
   exp4         Experiment 4 — CO₂ bifurcation           → experiments/exp4/
-  (no args)    Print help text
+  help         Print this help text  (also: --help, no args)
 
 run examples:
   julia avalon.jl run obliquity=60 CO2=1000 seasonal=true out=highco2_obl60
@@ -1047,7 +1055,7 @@ A 1D Budyko-Sellers energy balance model for the FILLET intercomparison project.
 Usage:
   julia avalon.jl                        # print this help text
   julia avalon.jl <command> [key=value]
-  julia avalon.jl --help
+  julia avalon.jl help | --help | -h     # print this help text
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FILLET benchmarks
@@ -1090,12 +1098,12 @@ Custom single case
     obliquity=<°>   axial tilt                  (default: 23.5)
     CO2=<ppm>       atmospheric CO₂             (default: 280.0)
     CO2_ref=<ppm>   CO₂ reference level         (default: 280.0)
-    D=<value>       diffusion coefficient        (default: 0.50)
+    D=<W/m²/K>      diffusion coefficient        (default: 0.50)
     A=<W/m²>        OLR intercept               (default: 210.0)
     B=<W/m²/K>      OLR slope                   (default: 2.0)
-    alpha_land=<>   land surface albedo           (default: 0.30)
-    alpha_ocean=<>  open ocean surface albedo    (default: 0.20)
-    alpha_ice=<>    ice surface albedo           (default: 0.60)
+    alpha_land=<0-1>  land surface albedo        (default: 0.30)
+    alpha_ocean=<0-1> open ocean surface albedo  (default: 0.20)
+    alpha_ice=<0-1>   ice surface albedo         (default: 0.60)
     T_ice=<°C>      ice threshold temperature    (default: -10.0)
     C_land=<J/m²K>  land heat capacity           (default: 1e7)
     C_ocean=<J/m²K> ocean heat capacity          (default: 4e8)
