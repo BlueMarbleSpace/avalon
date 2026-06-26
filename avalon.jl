@@ -73,7 +73,7 @@ Base.@kwdef struct Params
     α_land::Float64    = 0.30
     α_ocean::Float64   = 0.20
     α_ice::Float64     = 0.60
-    T_ice::Float64     = -10.0      # [°C] annual-mean freezing threshold
+    T_ice::Float64     = 0.0        # [°C] freezing threshold for ice albedo / ice line
 
     # Time stepping
     dt::Float64        = 86400.0 * 365 / 12   # ~1 month [s]
@@ -93,7 +93,11 @@ S0_from_au(a::Float64) = S_earth / a^2
 # Grid
 # ============================================================
 
-make_grid(p::Params) = collect(range(-1.0, 1.0, length=p.n))
+# Cell-centered sin-latitude grid: nodes at band midpoints x_i = −1 + (i−½)·dx,
+# dx = 2/n. Equal-area cells with no node ON the poles — this avoids the
+# tan(φ)→∞ singularity and makes the simple average sum/n the exact area mean
+# (global-mean insolation = S0/4 at every obliquity; diffusion integrates to 0).
+make_grid(p::Params) = collect(range(-1.0 + 1.0/p.n, 1.0 - 1.0/p.n, length=p.n))
 lat_deg(x::AbstractVector) = asind.(x)
 
 """
@@ -359,6 +363,10 @@ end
 # Diagnostics
 # ============================================================
 
+# Global area-weighted mean. The cell-centered make_grid gives equal-area bands
+# with no nodes on the poles, so the simple average IS the exact area mean:
+# global-mean insolation = S0/4 at every obliquity and the diffusion term
+# integrates to zero (snowball Tglob is obliquity-independent to 2nd order in 1/n).
 global_mean(field::AbstractVector) = sum(field) / length(field)
 
 function fmt_time(s::Float64)
@@ -392,7 +400,9 @@ function ice_edges(T::AbstractVector, x::AbstractVector, p::Params)
     if isempty(nh_idx)
         nh_max = 90.0; nh_min = 90.0
     else
-        nh_max = asind(x[maximum(nh_idx)])
+        # Poleward edge snaps to the pole when the polemost cell is iced (a polar
+        # cap extends to 90°); cell-centered grid has no node exactly at the pole.
+        nh_max = maximum(nh_idx) == length(x) ? 90.0 : asind(x[maximum(nh_idx)])
         nh_min = at_eq ? 0.0 : asind(x[minimum(nh_idx)])
     end
 
@@ -403,7 +413,8 @@ function ice_edges(T::AbstractVector, x::AbstractVector, p::Params)
         sh_max = -90.0; sh_min = -90.0
     else
         sh_max = at_eq ? 0.0 : asind(x[maximum(sh_idx)])   # least negative = equatorward
-        sh_min = asind(x[minimum(sh_idx)])                  # most negative  = poleward
+        # Poleward edge snaps to −90° when the polemost cell is iced.
+        sh_min = minimum(sh_idx) == 1 ? -90.0 : asind(x[minimum(sh_idx)])  # most negative = poleward
     end
 
     return (NH_max=nh_max, NH_min=nh_min, SH_max=sh_max, SH_min=sh_min)
@@ -934,9 +945,9 @@ Usage:
 """
 function run_cli(cmd::String, extra_args::Vector{String}=String[])
     if cmd == "benchmark1"
-        println("FILLET Benchmark 1 (tuned pre-industrial Earth: D=0.52, α_ocean=0.2689, C_ocean=2e8, Earth land fraction)")
+        println("FILLET Benchmark 1 (tuned pre-industrial Earth: D=0.52, α_ocean=0.223, C_ocean=2e8, Earth land fraction)")
         x_ben1 = make_grid(Params())
-        p = Params(D=0.52, α_ocean=0.2689, C_ocean=2e8,
+        p = Params(D=0.52, α_ocean=0.223, C_ocean=2e8,
                    land_fraction=earth_land_fraction(x_ben1), seasonal=true)
         r = equilibrium(p; verbose=true)
         write_fillet_output(r.T, r.x, p, joinpath("experiments","ben1"), "ben1";
@@ -1028,7 +1039,7 @@ Unknown command: "$cmd"
 Usage:  julia avalon.jl <command> [key=value ...]
 
 Commands:
-  benchmark1   Benchmark 1 — tuned to 288 K (seasonal, D=0.52, α_ocean=0.2689, C_ocean=2e8, Earth land fraction) → experiments/ben1/
+  benchmark1   Benchmark 1 — tuned to 288 K (seasonal, D=0.52, α_ocean=0.223, C_ocean=2e8, Earth land fraction) → experiments/ben1/
   benchmark2   Benchmark 2 — un-tuned, ε = 23.5°  → experiments/ben2/
   benchmark3   Benchmark 3 — un-tuned, ε = 60°    → experiments/ben3/
   run          Custom single case — accepts key=value parameter overrides  → experiments/<tag>/
@@ -1060,7 +1071,7 @@ Usage:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 FILLET benchmarks
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  benchmark1   Tuned pre-industrial Earth (seasonal, D=0.52, α_ocean=0.2689, C_ocean=2e8, Earth land fraction, ε=23.5°, CO₂=280 ppm)
+  benchmark1   Tuned pre-industrial Earth (seasonal, D=0.52, α_ocean=0.223, C_ocean=2e8, Earth land fraction, ε=23.5°, CO₂=280 ppm)
                → experiments/ben1/
 
   benchmark2   Un-tuned default parameters (seasonal, ε=23.5°, CO₂=280 ppm)
@@ -1104,7 +1115,7 @@ Custom single case
     alpha_land=<0-1>  land surface albedo        (default: 0.30)
     alpha_ocean=<0-1> open ocean surface albedo  (default: 0.20)
     alpha_ice=<0-1>   ice surface albedo         (default: 0.60)
-    T_ice=<°C>      ice threshold temperature    (default: -10.0)
+    T_ice=<°C>      ice threshold temperature    (default: 0.0)
     C_land=<J/m²K>  land heat capacity           (default: 1e7)
     C_ocean=<J/m²K> ocean heat capacity          (default: 4e8)
     C_ice=<J/m²K>   ice heat capacity            (default: 1e7)

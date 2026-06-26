@@ -139,8 +139,7 @@ def plot_benchmark(tag):
                          rasterized=True)
     ax1.plot(lat, T_C, color="tab:red", lw=1.8,
              label="Annual mean" if T_seas is not None else "Temperature")
-    ax1.axhline(-10, color="tab:blue", lw=0.9, ls="--", label="$T_{\\rm ice}$ = −10 °C")
-    ax1.axhline(0,   color="gray",     lw=0.6, ls=":")
+    ax1.axhline(0, color="tab:blue", lw=0.9, ls="--", label="$T_{\\rm ice}$ = 0 °C")
     if ice_min is not None:
         ax1.axvline( ice_min, color="tab:blue", lw=0.9, ls=":",
                      label=f"Ice edge ±{ice_min:.1f}°")
@@ -229,7 +228,7 @@ def plot_seasonal(tag):
     vmin, vmax = np.floor(T_C.min() / 5) * 5, np.ceil(T_C.max() / 5) * 5
     cf = ax1.contourf(lats, months, T_C, levels=20, cmap="RdBu_r",
                       vmin=vmin, vmax=vmax)
-    ax1.contour(lats, months, T_C, levels=[-10], colors="cyan",
+    ax1.contour(lats, months, T_C, levels=[0], colors="cyan",
                 linewidths=1.2, linestyles="--")
     plt.colorbar(cf, ax=ax1, label="Temperature (°C)")
     ax1.set_xlabel("Latitude (°)")
@@ -238,7 +237,7 @@ def plot_seasonal(tag):
     ax1.set_yticklabels(MONTH_LABELS)
     ax1.set_xlim(-90, 90)
     ax1.set_xticks(range(-90, 91, 30))
-    ax1.set_title("Surface temperature (°C)\n[cyan dashed = −10 °C ice threshold]")
+    ax1.set_title("Surface temperature (°C)\n[cyan dashed = 0 °C ice threshold]")
 
     # --- Seasonal amplitude ---
     ax2.plot(lats, amplitude, color="tab:orange", lw=2)
@@ -465,8 +464,7 @@ def plot_bifurcation(tag):
             ax.axvspan(bistable_lo, bistable_hi, color="gray", alpha=0.08,
                        label="Overlapping range")
 
-    ax1.axhline(-10, color="tab:blue", lw=0.8, ls="--", alpha=0.5, label="T = −10 °C")
-    ax1.axhline(0,   color="gray",     lw=0.6, ls=":")
+    ax1.axhline(0, color="tab:blue", lw=0.8, ls="--", alpha=0.5, label="$T_{\\rm ice}$ = 0 °C")
     ax1.set_xlabel(xlabel); ax1.set_ylabel("Global mean temperature (°C)")
     ax1.set_title("Global mean temperature")
     ax1.legend(fontsize=8)

@@ -44,7 +44,7 @@ Everything lives in `avalon.jl` (~1160 lines). Key layers from bottom to top:
 
 3. **Physics functions** (line ~155):
    - `insolation()` / `insolation_instant()` — annual-mean and daily-mean solar forcing (Berger 1978 obliquity formula)
-   - `albedo()` — ice (T < −10°C) → 0.60; otherwise `f_land × α_land + (1−f_land) × α_ocean` per band
+   - `albedo()` — ice (T < 0°C, set by `T_ice`) → 0.60; otherwise `f_land × α_land + (1−f_land) × α_ocean` per band
    - `A_eff()` — OLR intercept with CO₂ forcing (Myhre et al. 1998 logarithmic)
 
 4. **IMEX solver** (line ~200):
@@ -66,7 +66,7 @@ Everything lives in `avalon.jl` (~1160 lines). Key layers from bottom to top:
 
 ## Benchmark 1 vs Ben2+
 
-**Benchmark 1** uses non-FILLET parameters tuned to best reproduce pre-industrial Earth: `D=0.52`, `α_ocean=0.2689`, `C_ocean=2e8` (50 m mixed layer), `land_fraction=earth_land_fraction(x)`. Gives Tglob=288 K, NH ice edge ~73°N, seasonal amplitude ~14°C at mid-latitudes.
+**Benchmark 1** uses non-FILLET parameters tuned to best reproduce pre-industrial Earth: `D=0.52`, `α_ocean=0.223`, `C_ocean=2e8` (50 m mixed layer), `land_fraction=earth_land_fraction(x)`. Gives Tglob=288 K. NH ice edge ~50°N (with `T_ice=0°C`; the ice line is more equatorward than the −10°C Budyko convention — α_ocean alone recovers 288 K but not a ~70°N edge).
 
 **Benchmarks 2/3 and all experiments** use FILLET Table 4 defaults: uniform `land_fraction=0.25`, `C_ocean=4e8`, `D=0.50`. Do not change these for FILLET submissions.
 
