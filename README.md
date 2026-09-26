@@ -181,7 +181,7 @@ Every benchmark and experiment was regenerated after these changes; the archived
 
 ## Citation
 
-Releases are archived on Zenodo. Cite the concept DOI [10.5281/zenodo.22978034](https://doi.org/10.5281/zenodo.22978034), which always resolves to the latest version (v1.1.1 is [10.5281/zenodo.22978035](https://doi.org/10.5281/zenodo.22978035)). Citation metadata is in `CITATION.cff`.
+Releases are archived on Zenodo. Cite the concept DOI [10.5281/zenodo.22978034](https://doi.org/10.5281/zenodo.22978034), which always resolves to the latest version (v1.2 is [10.5281/zenodo.22981638](https://doi.org/10.5281/zenodo.22981638)). Citation metadata is in `CITATION.cff`.
 
 ## Authors
 
