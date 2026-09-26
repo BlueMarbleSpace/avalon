@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "AVALON: Albedo-feedback Variable Axial-tilt Latitudinal Outgoing-Net EBM"
+authors:
+  - family-names: "Haqq-Misra"
+    given-names: "Jacob"
+    orcid: "https://orcid.org/0000-0003-4346-2611"
+    affiliation: "Blue Marble Space Institute of Science"
+version: 1.1
+date-released: 2026-09-26
+license: MIT
+repository-code: "https://github.com/BlueMarbleSpace/avalon"
+abstract: >-
+  AVALON is a one-dimensional Budyko-Sellers energy balance climate model
+  (latitude-dependent, seasonally forced, with ice-albedo feedback and CO2
+  forcing) written in Julia for the FILLET energy balance model
+  intercomparison project.
