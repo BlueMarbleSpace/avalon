@@ -3,16 +3,16 @@
 # Describe how ice line latitude is determined: latitude where the annual-mean surface temperature crosses 0.00 C, linearly interpolated in latitude between cell centers. Land and Sea columns are identical (one temperature per band).
 # Conventions: ice-free NMax=NMin=90, SMax=SMin=-90; snowball NMax=90 NMin=0 SMax=0 SMin=-90; polar cap NMax=90 NMin=edge (SMax=-edge SMin=-90); belt NMax/NMin = poleward/equatorward edges. If a cap and a belt coexist the cap is reported.
 # Mode: seasonal (limit cycle; values are means over the final orbit)
-# Orbital period (days): 365.0000; steps per orbit: 365 (dt = 1.0000 days); grid: 90 equal-area cells in sin(lat), cell-centered, no node on the poles
+# Orbital period (days): 365.0000; steps per orbit: 366 (dt = 0.9973 days; even count, so the sampled seasonal forcing is mirror-symmetric between hemispheres); grid: 90 equal-area cells in sin(lat), cell-centered, no node on the poles
 # Albedo land/ocean/ice: 0.3000/0.2568/0.6000; heat capacity land/ocean/ice: 1e+07/2e+08/1e+07 J m^-2 K^-1; D = 0.5200 W m^-2 K^-1
 # OLR = A + B*T - F*ln(CO2/280 ppm), T in C: A = 210.00 W m^-2, B = 2.000 W m^-2 K^-1, F = 5.35 W m^-2
 # Ice: linear transition of width 1.00 K centered on 0.00 C; an ice-covered band takes the ice albedo and the ice heat capacity (from the instantaneous temperature)
 # Land fraction: latitude-dependent Earth profile (area mean 0.299); one temperature per band (land and ocean blended in albedo and heat capacity)
 # Initial state: uniform 30.0 C at all latitudes (warm start), integration starts at northern spring equinox
 # Tuning: alpha_ocean = 0.25676, D = 0.52, C_ocean = 2e+08 (50 m mixed layer), Earth-like land fraction; target Tglob = 288 K (julia avalon.jl tune_ben1)
-# Convergence: converged after 46 orbits; max |T(t) - T(t - P)| over the final orbit = 8.96e-05 K (tolerance 1.0e-04 K)
-# Hemispheric symmetry: max |T(lat) - T(-lat)| of the annual mean = 3.8458 K (land fraction is asymmetric, so asymmetry is expected)
+# Convergence: converged after 43 orbits; max |T(t) - T(t - P)| over the final orbit = 8.52e-05 K (tolerance 1.0e-04 K)
+# Hemispheric symmetry: max |T(lat) - T(-lat)| of the annual mean = 3.8504 K (land fraction is asymmetric, so asymmetry is expected)
 #
 # Columns: Case = case number; Inst = instellation (S_earth = 1361 W m^-2); Obl = obliquity (deg); XCO2 = CO2 mixing ratio (ppm); Tglob = area-weighted annual mean surface temperature (K); IceLine* = ice edges (deg, see above); Diff = diffusion coefficient used (W m^-2 K^-1); OLRglob = area-weighted annual mean OLR (W m^-2)
 # Case Inst Obl XCO2 Tglob IceLineNMaxLand IceLineNMinLand IceLineNMaxSea IceLineNMinSea IceLineSMaxLand IceLineSMinLand IceLineSMaxSea IceLineSMinSea Diff OLRglob
-0 1.000000 23.5 280 288.0019 90.000 52.962 90.000 52.962 -57.811 -90.000 -57.811 -90.000 0.5200 239.7037
+0 1.000000 23.5 280 288.0001 90.000 52.955 90.000 52.955 -57.811 -90.000 -57.811 -90.000 0.5200 239.7002

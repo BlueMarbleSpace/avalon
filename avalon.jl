@@ -82,7 +82,10 @@ Base.@kwdef struct Params
     ΔT_ice::Float64    = 1.0        # [K] width of the ice transition (ice fraction ramps 0→1 over T_ice ± ΔT_ice/2); 0 → step
 
     # Time stepping and convergence
-    steps_per_orbit::Int = 365      # dt = period / steps_per_orbit (1 day for a 365-day orbit)
+    steps_per_orbit::Int = 366      # dt = period / steps_per_orbit (0.997 d for a 365-day orbit). Keep it EVEN: the
+                                    # hemisphere swap is a half-orbit shift of steps_per_orbit/2 steps, so an odd count
+                                    # samples the seasonal forcing differently in the two hemispheres (N-S asymmetries
+                                    # of up to 0.4 K with 365 steps).
     tol::Float64       = 1e-4       # converged when max |T(t) − T(t − P)| over an orbit < tol [K]
     max_orbits::Int    = 500
 
@@ -643,8 +646,9 @@ function config_notes(p::Params)
     return [
         "# Mode: " * (p.seasonal ? "seasonal (limit cycle; values are means over the final orbit)" :
                                    "orbit-mean insolation (fixed point)"),
-        @sprintf("# Orbital period (days): %.4f; steps per orbit: %d (dt = %.4f days); grid: %d equal-area cells in sin(lat), cell-centered, no node on the poles",
-                 p.period_days, p.steps_per_orbit, p.period_days / p.steps_per_orbit, p.n),
+        @sprintf("# Orbital period (days): %.4f; steps per orbit: %d (dt = %.4f days%s); grid: %d equal-area cells in sin(lat), cell-centered, no node on the poles",
+                 p.period_days, p.steps_per_orbit, p.period_days / p.steps_per_orbit,
+                 iseven(p.steps_per_orbit) ? "; even count, so the sampled seasonal forcing is mirror-symmetric between hemispheres" : "", p.n),
         @sprintf("# Albedo land/ocean/ice: %.4f/%.4f/%.4f; heat capacity land/ocean/ice: %.3g/%.3g/%.3g J m^-2 K^-1; D = %.4f W m^-2 K^-1",
                  p.α_land, p.α_ocean, p.α_ice, p.C_land, p.C_ocean, p.C_ice, p.D),
         @sprintf("# OLR = A + B*T - F*ln(CO2/%g ppm), T in C: A = %.2f W m^-2, B = %.3f W m^-2 K^-1, F = %.2f W m^-2",
@@ -819,8 +823,17 @@ function run_fillet_sweep(S0_factors::AbstractVector, obliquities::AbstractVecto
                                   "# Orbital period: 365 d x a^1.5 with a = Inst^(-1/2) au (Kepler's third law); the period of each case is in its lat file header",
              "# Per-case convergence and hemispheric-symmetry diagnostics are kept with the AVALON repository (convergence.log and per-case lat files)"]
 
+    header = global_header(label, p_base; extra=extra)
+    if !isnothing(periods)   # the config line would otherwise print the base period; state the per-case range instead
+        header = map(header) do l
+            startswith(l, "# Orbital period (days):") ?
+                @sprintf("# Orbital period (days): %.4f to %.4f, set per case as 365 d x a^1.5 (see below); steps per orbit: %d (dt = period/%d%s); grid: %d equal-area cells in sin(lat), cell-centered, no node on the poles",
+                         minimum(periods), maximum(periods), p_base.steps_per_orbit, p_base.steps_per_orbit,
+                         iseven(p_base.steps_per_orbit) ? "; even count, so the sampled seasonal forcing is mirror-symmetric between hemispheres" : "", p_base.n) : l
+        end
+    end
     open(joinpath(outdir, "global_output_AVALON_$(tag).dat"), "w") do io
-        foreach(l -> println(io, l), global_header(label, p_base; extra=extra))
+        foreach(l -> println(io, l), header)
         open(joinpath(outdir, "convergence.log"), "w") do log
             println(log, "# case inst obl period_days orbits converged cycle_orbits max_dT_K asym_K ice_segments")
             for (k, (sf, obl, per)) in enumerate(cases)
@@ -1303,7 +1316,7 @@ Custom single case
     C_land=<J/m²K>    land heat capacity             (default: 1e7)
     C_ocean=<J/m²K>   ocean heat capacity            (default: 4e8)
     C_ice=<J/m²K>     ice heat capacity              (default: 1e7; applied to ice-covered bands)
-    steps_per_orbit=<N> time steps per orbit         (default: 365)
+    steps_per_orbit=<N> time steps per orbit         (default: 366; use an even N, see README)
     tol=<K>           convergence tolerance          (default: 1e-4 K per orbit)
     max_orbits=<N>    convergence limit              (default: 500)
     seasonal=true     enable seasonal cycle          (default: false)

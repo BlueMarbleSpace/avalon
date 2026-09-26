@@ -45,14 +45,14 @@ julia avalon.jl help                # Full CLI documentation
 - α = f · α<sub>ice</sub> + (1 − f) · [f<sub>land</sub> α<sub>land</sub> + (1 − f<sub>land</sub>) α<sub>ocean</sub>]
 - C = f · C<sub>ice</sub> + (1 − f) · [f<sub>land</sub> C<sub>land</sub> + (1 − f<sub>land</sub>) C<sub>ocean</sub>]
 
-The 1 K transition is a numerical regularization of the step: with a pure step on a discrete grid, freeze/thaw dates chatter from year to year and the equilibrium depends on the initial state (Benchmark 2 came out north–south asymmetric by 0.9 K). With the ramp every case converges to a unique, symmetric limit cycle, and global means move by less than 0.05 K relative to the step.
+The 1 K transition is a numerical regularization of the step: with a pure step on a discrete grid, freeze/thaw dates chatter from year to year and the equilibrium depends on the initial state (Benchmark 2 came out north–south asymmetric by 0.9 K). With the ramp every case converges, Benchmark 2 reaches the same state from 10, 15 and 30 °C starts, and global means move by less than 0.05 K relative to the step.
 
 **OLR** — Linear in temperature with a logarithmic CO₂ correction (Myhre et al. 1998):
 OLR = A + B·T − F<sub>CO₂</sub>·ln(CO₂/CO₂<sub>ref</sub>), with A = 210 W m⁻², B = 2.0 W m⁻² K⁻¹, F = 5.35 W m⁻² (T in °C).
 
 **Diffusion** — Finite-volume operator with (1 − x²) weighting on a cell-centered equal-area `sin(lat)` grid (90 cells, no node on the poles), zero flux at the poles.
 
-**Time stepping** — IMEX: diffusion and the OLR slope are implicit, albedo and heat capacity explicit. The tridiagonal system is solved every step with the Thomas algorithm, so the heat capacity is free to change with the ice state. Default step: 1 day (`steps_per_orbit = 365`). A Benchmark 2 run takes about 0.1 s.
+**Time stepping** — IMEX: diffusion and the OLR slope are implicit, albedo and heat capacity explicit. The tridiagonal system is solved every step with the Thomas algorithm, so the heat capacity is free to change with the ice state. Default `steps_per_orbit = 366`, i.e. 0.997 d for a 365-day orbit. The count is even on purpose: swapping the hemispheres is a half-orbit shift of `steps_per_orbit/2` steps, so with an odd count the two hemispheres sample the seasonal forcing at different phases. With 365 steps (v1.1) that sampling asymmetry left north–south asymmetries of up to 0.4 K in the annual-mean temperature of high-obliquity snowball cases and 1.3° between the two edges of an ice belt; with 366 every symmetric configuration is symmetric to below 10⁻³ K, and no climate state, hysteresis threshold or benchmark value changes at the quoted precision. A Benchmark 2 run takes about 0.1 s.
 
 **Convergence** — Every step of an orbit is compared with the same phase 1, 2, 3 and 4 orbits earlier; the run converges when the largest such change over a whole orbit is below `tol` (10⁻⁴ K) for some lag, and that lag is the period of the cycle. Seasonally forced ice–albedo systems can settle into period-2 or period-4 (biennial) cycles, which a one-orbit test never accepts; AVALON reports the mean over the full cycle and says so in the header. Runs that hit `max_orbits` (500) are flagged `NOT CONVERGED` in the output headers, the terminal, and `convergence.log`. Every output header records the orbits run, the cycle period, the final change, and the north–south asymmetry of the annual-mean temperature.
 
@@ -60,7 +60,7 @@ OLR = A + B·T − F<sub>CO₂</sub>·ln(CO₂/CO₂<sub>ref</sub>), with A = 21
 
 ## FILLET benchmarks and experiments
 
-All runs use FILLET Table 4 parameters (below) unless noted, in seasonal mode with daily steps. Warm starts are a uniform 30 °C, cold starts a uniform −50 °C (benchmarks use the warm start).
+All runs use FILLET Table 4 parameters (below) unless noted, in seasonal mode with 366 steps per orbit (about one day each). Warm starts are a uniform 30 °C, cold starts a uniform −50 °C (benchmarks use the warm start).
 
 | Command | Description | Output |
 |---------|-------------|--------|
@@ -82,8 +82,8 @@ Experiments 3 and 4 use the Benchmark 2 configuration by default, which is what 
 
 | Benchmark | Tglob | Ice edges (annual-mean 0 °C) | Orbits to converge |
 |-----------|-------|------------------------------|--------------------|
-| 1 (tuned) | 288.0 K | 53.0°N, 57.8°S | 46 |
-| 2 (ε = 23.5°) | 299.4 K | 79.6°N, 79.6°S | 82 |
+| 1 (tuned) | 288.0 K | 53.0°N, 57.8°S | 43 |
+| 2 (ε = 23.5°) | 299.4 K | 79.6°N, 79.6°S | 62 |
 | 3 (ε = 60°) | 300.0 K | ice-free | 44 |
 
 Under a −10 °C threshold (Budyko's convention) the Benchmark 1 edge would sit near 70°; the 0 °C convention places every FILLET model's Earth edge near 50–58° (FILLET code comparison, Sept 2026).
@@ -156,7 +156,7 @@ Run `julia avalon.jl help` for the full list of parameters.
 
 ## Changes since the archived FILLET submission
 
-The files in `Results/avalon/` of the FILLET repository come from AVALON v1.0 (April 2026); this is v1.1.1 (September 2026). Since then:
+The files in `Results/avalon/` of the FILLET repository come from AVALON v1.0 (April 2026); this is v1.2 (September 2026). Since then:
 
 - **June 2026** — cell-centered grid (the archived grid had nodes on the poles and an unweighted mean, which made the global mean depend on obliquity); ice threshold 0 °C instead of −10 °C; Benchmark 1 re-tuned.
 - **September 2026**, in response to the FILLET code comparison (source audit of the participating models, September 2026):
@@ -168,12 +168,14 @@ The files in `Results/avalon/` of the FILLET repository come from AVALON v1.0 (A
   - ice edges interpolated between cell centers; cap-plus-belt states no longer read as snowballs;
   - instellation outermost in the sweep case order, fixed-precision columns;
   - `export` command for the FILLET archive layout; `tune_ben1`; `exp3/exp4 base=ben1`.
+- **v1.2 (September 2026)** — 366 steps per orbit instead of 365: an odd count samples the seasonal forcing at different phases in the two hemispheres (see *Time stepping*), which left north–south asymmetries of up to 0.4 K in v1.1's high-obliquity and belt cases; the even count removes them without changing any climate state, hysteresis threshold or benchmark value at the quoted precision. The Experiment 1a/2a global headers now state the per-case period range instead of the base 365 days. Time-step sensitivity of marginal cases documented under *Known limitations*.
 
 Every benchmark and experiment was regenerated after these changes; the archived submission should be replaced with `julia avalon.jl export`.
 
 ## Known limitations
 
-- One temperature per latitude band (land and ocean thermally blended), so land and sea ice lines coincide. Ice belts do occur on the cold-start branch at 50–60° obliquity near 1.05–1.08 S⊕, where the low ice heat capacity lets the summer pole thaw while the equator stays frozen; they are reported with the belt convention.
+- One temperature per latitude band (land and ocean thermally blended), so land and sea ice lines coincide. Ice belts do occur on the cold-start branch at 50–60° obliquity near 1.05–1.08 S⊕, where the low ice heat capacity lets the summer pole thaw while the equator stays frozen; they are reported with the belt convention. Both belts are marginal states (next item).
+- Time-step sensitivity of marginal cases. The ice fraction and heat capacity are explicit in time, and a polar band with the 10⁷ J m⁻² K⁻¹ ice heat capacity can move several kelvin per step through the 1 K transition, so states near a threshold depend on the step. Halving and quartering the step (730 and 1460 steps per orbit) leaves every Experiment 3/4 threshold and all but three of the 720 Experiment 1/1a/2/2a states unchanged: the two cold-start belts close into snowballs and one cold-start case (S = 1.27, 20° obliquity) deglaciates. Benchmark 2 moves by 0.03 K and Benchmark 1 by 0.12 K at 1460 steps. Set `steps_per_orbit` (keep it even) to test a case.
 - Experiment 4's cold-start branch stays glaciated over the whole 1–100,000 ppm range: with a linear OLR and the Myhre CO₂ coefficient, a snowball at S = 1 needs about 74 W m⁻² of CO₂ forcing (~3×10⁸ ppm) to deglaciate. This is structural to the OLR parameterization, not a range problem.
 - No zenith-angle dependence of the albedo and no atmospheric scattering, so the top-of-atmosphere albedo equals the surface albedo.
 

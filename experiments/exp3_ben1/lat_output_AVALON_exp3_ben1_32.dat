@@ -6,32 +6,32 @@
 # XCO2 (ppm): 280
 # Obliquity (degrees): 23.50
 # Mode: seasonal (limit cycle; values are means over the final orbit)
-# Orbital period (days): 365.0000; steps per orbit: 365 (dt = 1.0000 days); grid: 90 equal-area cells in sin(lat), cell-centered, no node on the poles
+# Orbital period (days): 365.0000; steps per orbit: 366 (dt = 0.9973 days; even count, so the sampled seasonal forcing is mirror-symmetric between hemispheres); grid: 90 equal-area cells in sin(lat), cell-centered, no node on the poles
 # Albedo land/ocean/ice: 0.3000/0.2568/0.6000; heat capacity land/ocean/ice: 1e+07/2e+08/1e+07 J m^-2 K^-1; D = 0.5200 W m^-2 K^-1
 # OLR = A + B*T - F*ln(CO2/280 ppm), T in C: A = 210.00 W m^-2, B = 2.000 W m^-2 K^-1, F = 5.35 W m^-2
 # Ice: linear transition of width 1.00 K centered on 0.00 C; an ice-covered band takes the ice albedo and the ice heat capacity (from the instantaneous temperature)
 # Land fraction: latitude-dependent Earth profile (area mean 0.299); one temperature per band (land and ocean blended in albedo and heat capacity)
-# Convergence: converged after 29 orbits; max |T(t) - T(t - P)| over the final orbit = 7.59e-05 K (tolerance 1.0e-04 K)
-# Hemispheric symmetry: max |T(lat) - T(-lat)| of the annual mean = 1.8729 K (land fraction is asymmetric, so asymmetry is expected)
+# Convergence: converged after 28 orbits; max |T(t) - T(t - P)| over the final orbit = 9.64e-05 K (tolerance 1.0e-04 K)
+# Hemispheric symmetry: max |T(lat) - T(-lat)| of the annual mean = 1.8690 K (land fraction is asymmetric, so asymmetry is expected)
 #
 # Columns of data (annually averaged for last orbit)
 # Lat = latitude (deg); Tsurf = surface temperature (K); Asurf = surface albedo (unweighted time mean over the orbit); ATOA = top-of-atmosphere albedo (= Asurf, no atmospheric scattering); OLR = outgoing longwave radiation (W m^-2); Fland = land fraction of the band
 # Lat Tsurf Asurf ATOA OLR Fland
- -81.45   279.15 0.3465 0.3465   222.00 0.4100
- -75.16   281.09 0.3184 0.3184   225.88 0.4100
+ -81.45   279.14 0.3466 0.3466   221.99 0.4100
+ -75.16   281.09 0.3185 0.3185   225.87 0.4100
  -70.81   282.99 0.2745 0.2745   229.68 0.4100
- -67.25   284.82 0.2732 0.2732   233.34 0.3805
- -64.16   286.59 0.2706 0.2706   236.89 0.3196
+ -67.25   284.82 0.2732 0.2732   233.33 0.3805
+ -64.16   286.59 0.2706 0.2706   236.88 0.3196
  -61.38   288.31 0.2679 0.2679   240.32 0.2587
  -58.82   289.97 0.2653 0.2653   243.64 0.1978
- -56.44   291.57 0.2627 0.2627   246.84 0.1369
- -54.20   293.11 0.2600 0.2600   249.91 0.0761
+ -56.44   291.57 0.2627 0.2627   246.83 0.1369
+ -54.20   293.10 0.2600 0.2600   249.91 0.0761
  -52.08   294.58 0.2574 0.2574   252.86 0.0152
  -50.06   295.99 0.2575 0.2575   255.69 0.0178
- -48.11   297.35 0.2579 0.2579   258.40 0.0263
- -46.24   298.65 0.2583 0.2583   260.99 0.0348
+ -48.11   297.35 0.2579 0.2579   258.39 0.0263
+ -46.24   298.64 0.2583 0.2583   260.99 0.0348
  -44.43   299.89 0.2586 0.2586   263.47 0.0433
- -42.67   301.08 0.2590 0.2590   265.85 0.0518
+ -42.67   301.07 0.2590 0.2590   265.85 0.0518
  -40.96   302.21 0.2594 0.2594   268.12 0.0603
  -39.30   303.30 0.2597 0.2597   270.30 0.0688
  -37.67   304.34 0.2601 0.2601   272.37 0.0773
@@ -41,7 +41,7 @@
  -31.48   308.02 0.2626 0.2626   279.75 0.1348
  -30.00   308.84 0.2632 0.2632   281.37 0.1496
  -28.54   309.61 0.2639 0.2639   282.91 0.1645
- -27.10   310.34 0.2645 0.2645   284.37 0.1794
+ -27.10   310.33 0.2645 0.2645   284.37 0.1794
  -25.68   311.02 0.2652 0.2652   285.75 0.1943
  -24.27   311.67 0.2658 0.2658   287.05 0.2092
  -22.89   312.29 0.2664 0.2664   288.27 0.2240
@@ -50,12 +50,12 @@
  -18.80   313.90 0.2668 0.2668   291.49 0.2323
  -17.46   314.36 0.2668 0.2668   292.42 0.2332
  -16.13   314.78 0.2669 0.2669   293.27 0.2341
- -14.81   315.18 0.2669 0.2669   294.05 0.2350
+ -14.81   315.17 0.2669 0.2669   294.05 0.2350
  -13.49   315.53 0.2670 0.2670   294.76 0.2359
  -12.19   315.85 0.2670 0.2670   295.40 0.2368
  -10.89   316.13 0.2670 0.2670   295.96 0.2376
   -9.59   316.38 0.2671 0.2671   296.46 0.2385
-  -8.31   316.59 0.2671 0.2671   296.89 0.2394
+  -8.31   316.59 0.2671 0.2671   296.88 0.2394
   -7.02   316.77 0.2672 0.2672   297.24 0.2421
   -5.74   316.91 0.2675 0.2675   297.53 0.2481
   -4.46   317.02 0.2677 0.2677   297.74 0.2541
@@ -66,7 +66,7 @@
    1.91   317.04 0.2690 0.2690   297.79 0.2840
    3.18   316.94 0.2693 0.2693   297.59 0.2900
    4.46   316.81 0.2696 0.2696   297.32 0.2959
-   5.74   316.64 0.2698 0.2698   296.99 0.3019
+   5.74   316.64 0.2698 0.2698   296.98 0.3019
    7.02   316.44 0.2701 0.2701   296.58 0.3079
    8.31   316.20 0.2704 0.2704   296.11 0.3146
    9.59   315.93 0.2707 0.2707   295.56 0.3217
@@ -105,5 +105,5 @@
   64.16   284.77 0.2779 0.2779   233.24 0.4887
   67.25   282.98 0.2770 0.2770   229.67 0.4512
   70.81   281.12 0.3158 0.3158   225.94 0.3484
-  75.16   279.22 0.3319 0.3319   222.14 0.2456
+  75.16   279.22 0.3319 0.3319   222.13 0.2456
   81.45   277.29 0.3437 0.3437   218.28 0.1700

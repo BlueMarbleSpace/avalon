@@ -6,27 +6,27 @@
 # XCO2 (ppm): 7543.12
 # Obliquity (degrees): 23.50
 # Mode: seasonal (limit cycle; values are means over the final orbit)
-# Orbital period (days): 365.0000; steps per orbit: 365 (dt = 1.0000 days); grid: 90 equal-area cells in sin(lat), cell-centered, no node on the poles
+# Orbital period (days): 365.0000; steps per orbit: 366 (dt = 0.9973 days; even count, so the sampled seasonal forcing is mirror-symmetric between hemispheres); grid: 90 equal-area cells in sin(lat), cell-centered, no node on the poles
 # Albedo land/ocean/ice: 0.3000/0.2568/0.6000; heat capacity land/ocean/ice: 1e+07/2e+08/1e+07 J m^-2 K^-1; D = 0.5200 W m^-2 K^-1
 # OLR = A + B*T - F*ln(CO2/280 ppm), T in C: A = 210.00 W m^-2, B = 2.000 W m^-2 K^-1, F = 5.35 W m^-2
 # Ice: linear transition of width 1.00 K centered on 0.00 C; an ice-covered band takes the ice albedo and the ice heat capacity (from the instantaneous temperature)
 # Land fraction: latitude-dependent Earth profile (area mean 0.299); one temperature per band (land and ocean blended in albedo and heat capacity)
-# Convergence: converged after 36 orbits; max |T(t) - T(t - P)| over the final orbit = 8.50e-05 K (tolerance 1.0e-04 K)
-# Hemispheric symmetry: max |T(lat) - T(-lat)| of the annual mean = 2.0035 K (land fraction is asymmetric, so asymmetry is expected)
+# Convergence: converged after 31 orbits; max |T(t) - T(t - P)| over the final orbit = 9.26e-05 K (tolerance 1.0e-04 K)
+# Hemispheric symmetry: max |T(lat) - T(-lat)| of the annual mean = 2.0055 K (land fraction is asymmetric, so asymmetry is expected)
 #
 # Columns of data (annually averaged for last orbit)
 # Lat = latitude (deg); Tsurf = surface temperature (K); Asurf = surface albedo (unweighted time mean over the orbit); ATOA = top-of-atmosphere albedo (= Asurf, no atmospheric scattering); OLR = outgoing longwave radiation (W m^-2); Fland = land fraction of the band
 # Lat Tsurf Asurf ATOA OLR Fland
  -81.45   277.58 0.3601 0.3601   201.24 0.4100
  -75.16   279.37 0.3372 0.3372   204.81 0.4100
- -70.81   281.13 0.2902 0.2902   208.33 0.4100
+ -70.81   281.13 0.2901 0.2901   208.34 0.4100
  -67.25   282.83 0.2732 0.2732   211.73 0.3805
  -64.16   284.47 0.2706 0.2706   215.01 0.3196
  -61.38   286.05 0.2679 0.2679   218.17 0.2587
  -58.82   287.57 0.2653 0.2653   221.22 0.1978
  -56.44   289.04 0.2627 0.2627   224.15 0.1369
  -54.20   290.44 0.2600 0.2600   226.97 0.0761
- -52.08   291.79 0.2574 0.2574   229.66 0.0152
+ -52.08   291.79 0.2574 0.2574   229.67 0.0152
  -50.06   293.09 0.2575 0.2575   232.25 0.0178
  -48.11   294.32 0.2579 0.2579   234.72 0.0263
  -46.24   295.51 0.2583 0.2583   237.09 0.0348
@@ -64,7 +64,7 @@
   -0.64   312.35 0.2685 0.2685   270.78 0.2720
    0.64   312.32 0.2688 0.2688   270.73 0.2780
    1.91   312.26 0.2690 0.2690   270.61 0.2840
-   3.18   312.17 0.2693 0.2693   270.43 0.2900
+   3.18   312.17 0.2693 0.2693   270.42 0.2900
    4.46   312.05 0.2696 0.2696   270.18 0.2959
    5.74   311.90 0.2698 0.2698   269.87 0.3019
    7.02   311.71 0.2701 0.2701   269.50 0.3079
@@ -97,13 +97,13 @@
   46.24   293.79 0.2792 0.2792   233.65 0.5181
   48.11   292.57 0.2796 0.2796   231.22 0.5291
   50.06   291.30 0.2801 0.2801   228.68 0.5400
-  52.08   289.99 0.2805 0.2805   226.05 0.5490
-  54.20   288.62 0.2800 0.2800   223.31 0.5369
+  52.08   289.98 0.2805 0.2805   226.05 0.5490
+  54.20   288.61 0.2800 0.2800   223.31 0.5369
   56.44   287.19 0.2795 0.2795   220.46 0.5249
   58.82   285.71 0.2789 0.2789   217.49 0.5128
   61.38   284.16 0.2784 0.2784   214.40 0.5007
   64.16   282.54 0.2782 0.2782   211.17 0.4887
-  67.25   280.85 0.3206 0.3206   207.79 0.4512
-  70.81   279.12 0.3371 0.3371   204.33 0.3484
-  75.16   277.37 0.3484 0.3484   200.83 0.2456
-  81.45   275.61 0.3582 0.3582   197.29 0.1700
+  67.25   280.85 0.3206 0.3206   207.78 0.4512
+  70.81   279.12 0.3372 0.3372   204.33 0.3484
+  75.16   277.37 0.3484 0.3484   200.82 0.2456
+  81.45   275.60 0.3583 0.3583   197.29 0.1700

@@ -5,13 +5,13 @@
 # XCO2 (ppm): 280
 # Obliquity (degrees): 10.00
 # Mode: seasonal (limit cycle; values are means over the final orbit)
-# Orbital period (days): 365.0000; steps per orbit: 365 (dt = 1.0000 days); grid: 90 equal-area cells in sin(lat), cell-centered, no node on the poles
+# Orbital period (days): 365.0000; steps per orbit: 366 (dt = 0.9973 days; even count, so the sampled seasonal forcing is mirror-symmetric between hemispheres); grid: 90 equal-area cells in sin(lat), cell-centered, no node on the poles
 # Albedo land/ocean/ice: 0.3000/0.2000/0.6000; heat capacity land/ocean/ice: 1e+07/4e+08/1e+07 J m^-2 K^-1; D = 0.5000 W m^-2 K^-1
 # OLR = A + B*T - F*ln(CO2/280 ppm), T in C: A = 210.00 W m^-2, B = 2.000 W m^-2 K^-1, F = 5.35 W m^-2
 # Ice: linear transition of width 1.00 K centered on 0.00 C; an ice-covered band takes the ice albedo and the ice heat capacity (from the instantaneous temperature)
 # Land fraction: 0.25 uniform (FILLET Table 4); one temperature per band (land and ocean blended in albedo and heat capacity)
-# Convergence: converged after 178 orbits; max |T(t) - T(t - P)| over the final orbit = 9.46e-05 K (tolerance 1.0e-04 K)
-# Hemispheric symmetry: max |T(lat) - T(-lat)| of the annual mean = 0.0002 K
+# Convergence: converged after 175 orbits; max |T(t) - T(t - P)| over the final orbit = 9.85e-05 K (tolerance 1.0e-04 K)
+# Hemispheric symmetry: max |T(lat) - T(-lat)| of the annual mean = 0.0000 K
 #
 # Columns of data (annually averaged for last orbit)
 # Lat = latitude (deg); Tsurf = surface temperature (K); Asurf = surface albedo (unweighted time mean over the orbit); ATOA = top-of-atmosphere albedo (= Asurf, no atmospheric scattering); OLR = outgoing longwave radiation (W m^-2); Fland = land fraction of the band
@@ -60,8 +60,8 @@
   -4.46   299.46 0.2250 0.2250   262.61 0.2500
   -3.18   299.61 0.2250 0.2250   262.93 0.2500
   -1.91   299.72 0.2250 0.2250   263.14 0.2500
-  -0.64   299.77 0.2250 0.2250   263.25 0.2500
-   0.64   299.77 0.2250 0.2250   263.25 0.2500
+  -0.64   299.77 0.2250 0.2250   263.24 0.2500
+   0.64   299.77 0.2250 0.2250   263.24 0.2500
    1.91   299.72 0.2250 0.2250   263.14 0.2500
    3.18   299.61 0.2250 0.2250   262.93 0.2500
    4.46   299.46 0.2250 0.2250   262.61 0.2500
@@ -95,7 +95,7 @@
   44.43   267.57 0.6000 0.6000   198.84 0.2500
   46.24   265.34 0.6000 0.6000   194.37 0.2500
   48.11   263.12 0.6000 0.6000   189.94 0.2500
-  50.06   260.92 0.6000 0.6000   185.54 0.2500
+  50.06   260.92 0.6000 0.6000   185.53 0.2500
   52.08   258.72 0.6000 0.6000   181.15 0.2500
   54.20   256.53 0.6000 0.6000   176.77 0.2500
   56.44   254.34 0.6000 0.6000   172.39 0.2500

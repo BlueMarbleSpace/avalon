@@ -83,9 +83,10 @@ Sweeps (exp1/exp2/exp1a/exp2a) and hysteresis runs (exp3/exp4) write a per-case 
 ## Key numerical choices
 
 - **Insolation table**: forcing averaged over each step and each cell (8 sub-points); orbit mean = exact annual mean, area mean = S₀/4 at every obliquity.
-- **IMEX time stepping**: implicit for linear terms (OLR damping + diffusion), explicit for albedo and heat capacity; Thomas solve every step so `C` can follow the ice state. dt = period/365 (1 day).
+- **IMEX time stepping**: implicit for linear terms (OLR damping + diffusion), explicit for albedo and heat capacity; Thomas solve every step so `C` can follow the ice state. dt = period/366 (≈ 1 day). `steps_per_orbit` must stay **even**: an odd count samples the seasonal forcing at different phases in the two hemispheres (v1.1's 365 steps gave N–S asymmetries up to 0.4 K and 1.3° in ice edges); with 366 every symmetric case is symmetric to < 1e−3 K.
 - **Ice transition** `ΔT_ice = 1 K` (ramp): a pure step (`dT_ice=0`) gives interannual chatter that never meets the tolerance and initial-state-dependent, N–S asymmetric Benchmark 2 states; the ramp changes Tglob by < 0.05 K.
 - **Convergence**: same-phase comparison at every step of the orbit against 1–4 orbits earlier (period-2/4 cycles are real at high obliquity and in belt states, and are averaged over the cycle), tol 1e−4 K; `max_orbits = 500`; non-convergence is flagged, never silent.
+- **Time-step sensitivity**: marginal seasonal-ice states depend on dt (730/1460 steps flip the two cold-start belts to snowballs and one cold-start case at S = 1.27, ε = 20° to ice-free; Exp 3/4 thresholds do not move; Ben2 −0.03 K, Ben1 −0.12 K at 1460). Documented in README *Known limitations*.
 - **Seasonal mode** runs to a limit cycle and reports means over the final orbit; **annual-mean mode** uses the table's orbit mean and runs to a fixed point.
 
 ## Docs

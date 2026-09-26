@@ -5,7 +5,7 @@
 # XCO2 (ppm): 280
 # Obliquity (degrees): 50.00
 # Mode: seasonal (limit cycle; values are means over the final orbit)
-# Orbital period (days): 311.6425; steps per orbit: 365 (dt = 0.8538 days); grid: 90 equal-area cells in sin(lat), cell-centered, no node on the poles
+# Orbital period (days): 311.6425; steps per orbit: 366 (dt = 0.8515 days; even count, so the sampled seasonal forcing is mirror-symmetric between hemispheres); grid: 90 equal-area cells in sin(lat), cell-centered, no node on the poles
 # Albedo land/ocean/ice: 0.3000/0.2000/0.6000; heat capacity land/ocean/ice: 1e+07/4e+08/1e+07 J m^-2 K^-1; D = 0.5000 W m^-2 K^-1
 # OLR = A + B*T - F*ln(CO2/280 ppm), T in C: A = 210.00 W m^-2, B = 2.000 W m^-2 K^-1, F = 5.35 W m^-2
 # Ice: linear transition of width 1.00 K centered on 0.00 C; an ice-covered band takes the ice albedo and the ice heat capacity (from the instantaneous temperature)
@@ -22,7 +22,7 @@
  -67.25   327.74 0.2250 0.2250   319.18 0.2500
  -64.16   327.82 0.2250 0.2250   319.34 0.2500
  -61.38   327.91 0.2250 0.2250   319.53 0.2500
- -58.82   328.02 0.2250 0.2250   319.74 0.2500
+ -58.82   328.02 0.2250 0.2250   319.73 0.2500
  -56.44   328.13 0.2250 0.2250   319.97 0.2500
  -54.20   328.26 0.2250 0.2250   320.23 0.2500
  -52.08   328.40 0.2250 0.2250   320.51 0.2500
