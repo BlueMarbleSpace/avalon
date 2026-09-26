@@ -1,0 +1,4 @@
+# Local working material, not part of the repository or of any release
+docs/
+experiments/regen.log
+__pycache__/

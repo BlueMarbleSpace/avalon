@@ -5,7 +5,7 @@ Usage:
     python3 plot.py <tag>                # annual-mean diagnostic panels (2×2 if Fland present)
     python3 plot.py <tag> seasonal       # Hovmöller + seasonal amplitude (requires {tag}_seasonal.csv)
     python3 plot.py <tag> sweep          # obliquity×instellation phase diagram (exp1/2/1a/2a)
-    python3 plot.py <tag> bifurcation    # hysteresis diagram with cooling/warming branches (exp3/4)
+    python3 plot.py <tag> bifurcation    # hysteresis diagram with warm/cold-start branches (exp3/4)
 
 Single-case plots read:
     experiments/{tag}/lat_output_AVALON_{tag}.dat
@@ -117,7 +117,7 @@ def plot_benchmark(tag):
             reader = csv.reader(f)
             header = next(reader)
             rows = [list(map(float, r)) for r in reader]
-        T_seas = np.array(rows)[:, 1:] - 273.15   # (12, n_lat)
+        T_seas = np.array(rows)[:, 1:] - 273.15   # (n_steps, n_lat)
 
     title = (f"AVALON — {tag.replace('_', ' ').title()}\n"
              f"S₀ = {inst} S⊕,  ε = {obl}°,  CO₂ = {co2:.0f} ppm  "
@@ -212,29 +212,32 @@ def plot_seasonal(tag):
         header = next(reader)
         rows = [list(map(float, r)) for r in reader]
 
-    T_K   = np.array(rows)[:, 1:]          # (n_months, n_lat) in K
-    T_C   = T_K - 273.15
-    lats  = np.array([float(h) for h in header[1:]])
-    months = np.arange(1, T_C.shape[0] + 1)
+    data   = np.array(rows)
+    t_days = data[:, 0]                    # day of orbit at the end of each step (0 = N spring equinox)
+    T_K    = data[:, 1:]                   # (n_steps, n_lat) in K
+    T_C    = T_K - 273.15
+    lats   = np.array([float(h) for h in header[1:]])
+    period = t_days[-1]
     amplitude = T_C.max(axis=0) - T_C.min(axis=0)
 
-    MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun",
-                    "Jul","Aug","Sep","Oct","Nov","Dec"]
-
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5))
-    fig.suptitle(f"AVALON — {tag.replace('_',' ').title()} — Seasonal cycle", fontsize=11)
+    fig.suptitle(f"AVALON — {tag.replace('_',' ').title()} — Seasonal cycle "
+                 f"({period:.0f}-day orbit, {len(t_days)} steps)", fontsize=11)
 
     # --- Hovmöller ---
     vmin, vmax = np.floor(T_C.min() / 5) * 5, np.ceil(T_C.max() / 5) * 5
-    cf = ax1.contourf(lats, months, T_C, levels=20, cmap="RdBu_r",
+    cf = ax1.contourf(lats, t_days, T_C, levels=20, cmap="RdBu_r",
                       vmin=vmin, vmax=vmax)
-    ax1.contour(lats, months, T_C, levels=[0], colors="cyan",
+    ax1.contour(lats, t_days, T_C, levels=[0], colors="cyan",
                 linewidths=1.2, linestyles="--")
     plt.colorbar(cf, ax=ax1, label="Temperature (°C)")
     ax1.set_xlabel("Latitude (°)")
-    ax1.set_ylabel("Month")
-    ax1.set_yticks(months)
-    ax1.set_yticklabels(MONTH_LABELS)
+    ax1.set_ylabel("Day of orbit (0 = northern spring equinox)")
+    # Mark the solstices and equinoxes (circular orbit: quarter periods)
+    ax1.set_yticks([0, period / 4, period / 2, 3 * period / 4, period])
+    ax1.set_yticklabels(["0\nN spring eq.", f"{period/4:.0f}\nN summer sol.",
+                         f"{period/2:.0f}\nN autumn eq.", f"{3*period/4:.0f}\nN winter sol.",
+                         f"{period:.0f}"], fontsize=8)
     ax1.set_xlim(-90, 90)
     ax1.set_xticks(range(-90, 91, 30))
     ax1.set_title("Surface temperature (°C)\n[cyan dashed = 0 °C ice threshold]")
@@ -311,7 +314,7 @@ def plot_sweep(tag):
 
     states = np.array([_climate_state(nm, ni) for nm, ni in zip(nmax, nmin)])
 
-    # Fixed state ordering and colours (consistent across exp1/exp2)
+    # Fixed state ordering and colors (consistent across exp1/exp2)
     STATE_ORDER  = ["ice-free", "ice-caps", "ice-belt", "snowball"]
     STATE_COLORS = ["#a8d8ea", "#3a7ebf", "#e07b39", "#1a1a2e"]
     state_idx    = {s: i for i, s in enumerate(STATE_ORDER)}
@@ -391,7 +394,7 @@ def plot_bifurcation(tag):
     """
     Bifurcation (hysteresis) diagram for exp3 (instellation sweep) or exp4 (CO₂ sweep).
     Two panels: global mean temperature and NH ice edge vs the swept parameter,
-    cooling and warming branches overlaid to show the bistable region.
+    warm-start and cold-start branches overlaid to show the bistable region.
     """
     outdir      = os.path.join("experiments", tag)
     global_file = os.path.join(outdir, f"global_output_AVALON_{tag}.dat")
@@ -405,7 +408,7 @@ def plot_bifurcation(tag):
         sys.exit(
             f"Error: '{tag}' does not look like a bifurcation experiment "
             f"(no 'Branch' column found in {global_file}).\n"
-            f"  'bifurcation' requires cooling/warming branch data — intended for exp3, exp4.\n"
+            f"  'bifurcation' requires warm/cold branch data — intended for exp3, exp4.\n"
             f"  For a single-case run, use:  python3 plot.py {tag}"
         )
 
@@ -427,8 +430,8 @@ def plot_bifurcation(tag):
     branch  = np.array(data["Branch"]) if isinstance(data["Branch"][0], str) else data["Branch"]
 
     BRANCH_STYLE = {
-        "cooling": dict(color="tab:blue",   lw=2.0, label="Cooling branch (warm start)"),
-        "warming": dict(color="tab:orange", lw=2.0, label="Warming branch (cold start)"),
+        "warm": dict(color="tab:blue",   lw=2.0, label="Warm-start branch (decreasing sweep)"),
+        "cold": dict(color="tab:orange", lw=2.0, label="Cold-start branch (increasing sweep)"),
     }
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
@@ -455,8 +458,8 @@ def plot_bifurcation(tag):
                  label=f"{br} ice-free" if np.any(ic == 90.0) else "")
 
     # Shade bistable region (instellation range where both branches exist)
-    cool_x = x_all[branch == "cooling"]
-    warm_x = x_all[branch == "warming"]
+    cool_x = x_all[branch == "warm"]
+    warm_x = x_all[branch == "cold"]
     if len(cool_x) and len(warm_x):
         bistable_lo = max(cool_x.min(), warm_x.min())
         bistable_hi = min(cool_x.max(), warm_x.max())
