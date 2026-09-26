@@ -154,7 +154,7 @@ Run `julia avalon.jl help` for the full list of parameters.
 
 ## Changes since the archived FILLET submission
 
-The files in `Results/avalon/` of the FILLET repository come from AVALON v1.0 (April 2026); this is v1.1 (September 2026). Since then:
+The files in `Results/avalon/` of the FILLET repository come from AVALON v1.0 (April 2026); this is v1.1.1 (September 2026). Since then:
 
 - **June 2026** — cell-centered grid (the archived grid had nodes on the poles and an unweighted mean, which made the global mean depend on obliquity); ice threshold 0 °C instead of −10 °C; Benchmark 1 re-tuned.
 - **September 2026**, in response to the FILLET code comparison (source audit of the participating models, September 2026):
