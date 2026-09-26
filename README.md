@@ -2,6 +2,8 @@
 
 ![AVALON Logo](avalon_logo.svg)
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.22978034.svg)](https://doi.org/10.5281/zenodo.22978034)
+
 **AVALON** (Albedo-feedback Variable Axial-tilt Latitudinal Outgoing-Net EBM) is a 1D Budyko-Sellers energy balance model built for the [FILLET intercomparison project](https://doi.org/10.3847/PSJ/ae1c3c). It solves the latitude-dependent energy balance equation:
 
 ```
@@ -174,6 +176,10 @@ Every benchmark and experiment was regenerated after these changes; the archived
 - One temperature per latitude band (land and ocean thermally blended), so land and sea ice lines coincide. Ice belts do occur on the cold-start branch at 50–60° obliquity near 1.05–1.08 S⊕, where the low ice heat capacity lets the summer pole thaw while the equator stays frozen; they are reported with the belt convention.
 - Experiment 4's cold-start branch stays glaciated over the whole 1–100,000 ppm range: with a linear OLR and the Myhre CO₂ coefficient, a snowball at S = 1 needs about 74 W m⁻² of CO₂ forcing (~3×10⁸ ppm) to deglaciate. This is structural to the OLR parameterization, not a range problem.
 - No zenith-angle dependence of the albedo and no atmospheric scattering, so the top-of-atmosphere albedo equals the surface albedo.
+
+## Citation
+
+Releases are archived on Zenodo. Cite the concept DOI [10.5281/zenodo.22978034](https://doi.org/10.5281/zenodo.22978034), which always resolves to the latest version (v1.1.1 is [10.5281/zenodo.22978035](https://doi.org/10.5281/zenodo.22978035)). Citation metadata is in `CITATION.cff`.
 
 ## Authors
 
